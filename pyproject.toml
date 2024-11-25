@@ -17,6 +17,7 @@ ipykernel = "^6.29.5"
 tokenizers = "^0.20.3"
 click = "^8.1.7"
 seaborn = "^0.13.2"
+pre-commit = "^4.0.1"
 
 
 [build-system]
