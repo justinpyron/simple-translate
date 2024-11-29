@@ -62,29 +62,54 @@ class MultiHeadedAttention(nn.Module):
         return x
 
 
-class EncoderBlock:
-    def __init__(self) -> None:
-        pass
+class EncoderBlock(nn.Module):
+    def __init__(
+        self,
+        dim_embedding: int,
+        dim_head: int,
+        num_heads: int,
+        dim_mlp: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+        # Self-attention (with padding mask) layer
+        self.layernorm_1 = nn.LayerNorm(dim_embedding)
+        self.attention = MultiHeadedAttention(
+            dim_embedding, dim_head, num_heads, dropout
+        )
+        self.dropout1 = nn.Dropout(dropout)
+        # Feed-forward layer
+        self.layernorm_2 = nn.LayerNorm(dim_embedding)
+        self.mlp = nn.Sequential(
+            nn.Linear(dim_embedding, dim_mlp),
+            nn.GELU(),
+            nn.Linear(dim_mlp, dim_embedding),
+        )
+        self.dropout2 = nn.Dropout(dropout)
 
     def forward(
         self,
-    ):
-        pass
+        x: torch.tensor,
+        attention_mask: torch.tensor = None,
+    ) -> torch.tensor:
+        x = x + self.dropout1(self.attention(self.layernorm_1(x), attention_mask))
+        x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
+        return x
 
 
-# # USAGE
+# USAGE
 # x = 1
 # cross_x = 2
 
-# # Self-attention, padding mask
+# [Encoder] Self-attention, padding mask
 # attention_mask = 1 # This will come from tokenizer
 # x = forward(x, attention_mask)
 
-# # Self-attention, autoregressive mask
+# [Decoder] Self-attention, autoregressive mask
 # attention_mask = torch.tril(x)
 # x = forward(x, attention_mask)
 
-# # Cross-attention, autoregressive mask
+# [Decoder] Cross-attention, autoregressive mask
 # attention_mask = torch.tril(x)
 # x = forward(x, attention_mask, cross_x)
 
