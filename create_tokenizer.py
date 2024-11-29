@@ -50,7 +50,7 @@ def create_tokenizer(
     tokenizer.decoder = decoders.ByteLevel()
     trainer = trainers.BpeTrainer(
         vocab_size=vocab_size,
-        special_tokens=[TOKEN_BOS, TOKEN_EOS],
+        special_tokens=[TOKEN_BOS, TOKEN_EOS, TOKEN_PAD],
     )
     corpus_iterator = get_corpus_generator(corpus_filename, 50000)
     tokenizer.train_from_iterator(corpus_iterator, trainer=trainer)
