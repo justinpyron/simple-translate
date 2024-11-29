@@ -1,3 +1,5 @@
+from typing import Union
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -20,17 +22,23 @@ class AttentionHead(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        x_attention_mask: torch.tensor = None,
+        attention_mask: Union[str, torch.tensor] = None,
         cross_x: torch.tensor = None,
     ) -> torch.tensor:
         Q = self.query(x)
         K = self.key(x if cross_x is None else cross_x)
         V = self.value(x if cross_x is None else cross_x)
+        print(f"K.shape = {K.shape}")  # TODO: delete after debugging
+        print(f"Q.shape = {Q.shape}")  # TODO: delete after debugging
         scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
-        x_attention_mask = (
-            torch.ones_like(scores) if x_attention_mask is None else x_attention_mask
-        )
-        scores = scores.masked_fill(x_attention_mask == 0, float("-inf"))
+        print(f"scores.shape = {scores.shape}")  # TODO: delete after debugging
+        if attention_mask is None:
+            attention_mask = torch.ones_like(scores)
+        elif attention_mask == "autoregressive":
+            attention_mask = torch.tril(scores)
+        else:
+            pass
+        scores = scores.masked_fill(attention_mask == 0, float("-inf"))
         attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.dropout(attention_weights)
         out = attention_weights @ V
@@ -54,12 +62,10 @@ class MultiHeadedAttention(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        x_attention_mask: torch.tensor = None,
+        attention_mask: torch.tensor = None,
         cross_x: torch.tensor = None,
     ) -> torch.tensor:
-        x = torch.cat(
-            [head(x, x_attention_mask, cross_x) for head in self.heads], dim=-1
-        )
+        x = torch.cat([head(x, attention_mask, cross_x) for head in self.heads], dim=-1)
         x = self.linear(x)
         return x
 
@@ -93,9 +99,11 @@ class EncoderBlock(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        x_attention_mask: torch.tensor = None,
+        attention_mask: torch.tensor = None,  # TODO: should this really be None by default?
     ) -> torch.tensor:
-        x = x + self.dropout1(self.attention(self.layernorm_1(x), x_attention_mask))
+        x = x + self.dropout1(
+            self.attention(self.layernorm_1(x), attention_mask=attention_mask)
+        )
         x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
         return x
 
@@ -117,7 +125,7 @@ class DecoderBlock(nn.Module):
         )
         self.dropout1 = nn.Dropout(dropout)
 
-        # Cross-attention (with autoregressive mask) layer
+        # Cross-attention (with padding mask) layer
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.cross_attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
@@ -136,38 +144,24 @@ class DecoderBlock(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        x_attention_mask: torch.tensor = None,
-        cross_x: torch.tensor = None,
+        attention_mask: torch.tensor,  # TODO: should this default to None?
+        cross_x: torch.tensor,
     ) -> torch.tensor:
         x = x + self.dropout1(
-            self.self_attention(self.layernorm_1(x), x_attention_mask)
+            self.self_attention(self.layernorm_1(x), attention_mask="autoregressive")
         )
         x = x + self.dropout2(
-            self.cross_attention(self.layernorm_2(x), x_attention_mask)
+            self.cross_attention(
+                self.layernorm_2(x), attention_mask=attention_mask, cross_x=cross_x
+            )
         )
-
-        x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
+        x = x + self.dropout3(self.mlp(self.layernorm_3(x)))
         return x
 
 
-# USAGE
-# x = 1
-# cross_x = 2
+# TODO: padding mask for decoder? Don't we need to ignore padding tokens when computing loss?
+# Otherwise, loss will be poluted by padding tokens.
 
 # [Encoder] Self-attention, padding mask
-# attention_mask = 1 # This will come from tokenizer
-# x = forward(x, attention_mask)
-
 # [Decoder] Self-attention, autoregressive mask
-# attention_mask = torch.tril(x)
-# x = forward(x, attention_mask)
-
-# [Decoder] Cross-attention, autoregressive mask
-# attention_mask = torch.tril(x)
-# x = forward(x, attention_mask, cross_x)
-
-
-# # TODO: multiheaded attention
-# # TODO: MLP
-# # TODO: encoder block: multiheaded self attention + MLP
-# # TODO: decoder block: multiheaded self attention + multiheaded cross attention + MLP
+# [Decoder] Cross-attention, padding mask
