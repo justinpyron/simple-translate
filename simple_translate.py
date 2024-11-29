@@ -20,17 +20,17 @@ class AttentionHead(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        attention_mask: torch.tensor = None,
+        x_attention_mask: torch.tensor = None,
         cross_x: torch.tensor = None,
     ) -> torch.tensor:
         Q = self.query(x)
         K = self.key(x if cross_x is None else cross_x)
         V = self.value(x if cross_x is None else cross_x)
         scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
-        attention_mask = (
-            torch.ones_like(scores) if attention_mask is None else attention_mask
+        x_attention_mask = (
+            torch.ones_like(scores) if x_attention_mask is None else x_attention_mask
         )
-        scores = scores.masked_fill(attention_mask == 0, float("-inf"))
+        scores = scores.masked_fill(x_attention_mask == 0, float("-inf"))
         attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.dropout(attention_weights)
         out = attention_weights @ V
@@ -54,10 +54,12 @@ class MultiHeadedAttention(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        attention_mask: torch.tensor = None,
+        x_attention_mask: torch.tensor = None,
         cross_x: torch.tensor = None,
     ) -> torch.tensor:
-        x = torch.cat([head(x, attention_mask, cross_x) for head in self.heads], dim=-1)
+        x = torch.cat(
+            [head(x, x_attention_mask, cross_x) for head in self.heads], dim=-1
+        )
         x = self.linear(x)
         return x
 
@@ -78,6 +80,7 @@ class EncoderBlock(nn.Module):
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
+
         # Feed-forward layer
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
@@ -90,9 +93,59 @@ class EncoderBlock(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        attention_mask: torch.tensor = None,
+        x_attention_mask: torch.tensor = None,
     ) -> torch.tensor:
-        x = x + self.dropout1(self.attention(self.layernorm_1(x), attention_mask))
+        x = x + self.dropout1(self.attention(self.layernorm_1(x), x_attention_mask))
+        x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
+        return x
+
+
+class DecoderBlock(nn.Module):
+    def __init__(
+        self,
+        dim_embedding: int,
+        dim_head: int,
+        num_heads: int,
+        dim_mlp: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+        # Self-attention (with autoregressive mask) layer
+        self.layernorm_1 = nn.LayerNorm(dim_embedding)
+        self.self_attention = MultiHeadedAttention(
+            dim_embedding, dim_head, num_heads, dropout
+        )
+        self.dropout1 = nn.Dropout(dropout)
+
+        # Cross-attention (with autoregressive mask) layer
+        self.layernorm_2 = nn.LayerNorm(dim_embedding)
+        self.cross_attention = MultiHeadedAttention(
+            dim_embedding, dim_head, num_heads, dropout
+        )
+        self.dropout2 = nn.Dropout(dropout)
+
+        # Feed-forward layer
+        self.layernorm_3 = nn.LayerNorm(dim_embedding)
+        self.mlp = nn.Sequential(
+            nn.Linear(dim_embedding, dim_mlp),
+            nn.GELU(),
+            nn.Linear(dim_mlp, dim_embedding),
+        )
+        self.dropout3 = nn.Dropout(dropout)
+
+    def forward(
+        self,
+        x: torch.tensor,
+        x_attention_mask: torch.tensor = None,
+        cross_x: torch.tensor = None,
+    ) -> torch.tensor:
+        x = x + self.dropout1(
+            self.self_attention(self.layernorm_1(x), x_attention_mask)
+        )
+        x = x + self.dropout2(
+            self.cross_attention(self.layernorm_2(x), x_attention_mask)
+        )
+
         x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
         return x
 
