@@ -165,6 +165,7 @@ class SimpleTranslate(nn.Module):
         token_id_pad: int,
     ) -> None:
         super().__init__()
+        self.vocab_size = vocab_size
         self.max_sequence_length = max_sequence_length
         self.dim_embedding = dim_embedding
         self.dim_head = dim_head
@@ -175,7 +176,6 @@ class SimpleTranslate(nn.Module):
         self.token_id_bos = token_id_bos
         self.token_id_eos = token_id_eos
         self.token_id_pad = token_id_pad
-
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
         self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
         self.encoder = nn.ModuleList(
@@ -195,7 +195,7 @@ class SimpleTranslate(nn.Module):
         self.classification_head = nn.Linear(dim_embedding, vocab_size)
         self.apply(self.init_weights)
 
-    def init_weights(self, module):
+    def init_weights(self, module) -> None:
         if isinstance(module, nn.Linear):
             nn.init.xavier_normal_(module.weight)
             if module.bias is not None:
@@ -208,11 +208,41 @@ class SimpleTranslate(nn.Module):
                 # Multiply by 2 bc token and position embeddings get added
             )
 
+    def forward_encoder(
+        self,
+        tokens_source: torch.tensor,
+        attention_mask_encoder: torch.tensor,
+    ) -> torch.tensor:
+        position_idx_source = torch.arange(tokens_source.shape[1])
+        x_encoder = self.token_embedder(tokens_source) + self.position_embedder(
+            position_idx_source
+        )
+        for block in self.encoder:
+            x_encoder = block(x_encoder, attention_mask_encoder)
+        x_encoder = self.layernorm_encoder(x_encoder)
+        return x_encoder
+
+    def forward_decoder(
+        self,
+        tokens_destination: torch.tensor,
+        attention_mask_decoder: torch.tensor,
+        x_encoder: torch.tensor,
+    ) -> torch.tensor:
+        position_idx_destination = torch.arange(tokens_destination.shape[1])
+        x_decoder = self.token_embedder(tokens_destination) + self.position_embedder(
+            position_idx_destination
+        )
+        for block in self.decoder:
+            x_decoder = block(x_decoder, attention_mask_decoder, x_encoder)
+        x_decoder = self.layernorm_decoder(x_decoder)
+        return x_decoder
+
     def forward(
         self,
         tokens_source: torch.tensor,
         tokens_destination: torch.tensor = None,
-    ) -> Union[float, torch.tensor]:
+    ) -> Union[torch.tensor, float]:
+        # Training vs inference processing
         if tokens_destination is None:
             targets = None
             tokens_destination = torch.full(
@@ -221,44 +251,32 @@ class SimpleTranslate(nn.Module):
         else:
             targets = tokens_destination[:, 1:]
             tokens_destination = tokens_destination[:, :-1]
-
+        # Attention masks
         pad_mask_source = (tokens_source != self.token_id_pad).int()
-        pad_mask_destination = (tokens_destination != self.token_id_pad).int()
+        pad_mask_destination = (tokens_destination != self.token_id_pad).float()
         attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_source.shape[-1], -1
         )
         attention_mask_decoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_destination.shape[-1], -1
         )
-
-        # Encoder TODO: move this into a forward_encoder() function
-        position_idx_source = torch.arange(tokens_source.shape[1])
-        x_encoder = self.token_embedder(tokens_source) + self.position_embedder(
-            position_idx_source
+        # Forward pass
+        x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
+        x_decoder = self.forward_decoder(
+            tokens_destination, attention_mask_decoder, x_encoder
         )
-        for block in self.encoder:
-            x_encoder = block(x_encoder, attention_mask_encoder)
-        x_encoder = self.layernorm_encoder(x_encoder)
-
-        # Decoder TODO: move this into a forward_decoder() function
-        position_idx_destination = torch.arange(tokens_destination.shape[1])
-        x_decoder = self.token_embedder(tokens_destination) + self.position_embedder(
-            position_idx_destination
-        )
-        for block in self.decoder:
-            x_decoder = block(x_decoder, attention_mask_decoder, x_encoder)
-        x_decoder = self.layernorm_decoder(x_decoder)
-
-        # Classification head TODO: move this into a forward_classification_head() function?
         logits = self.classification_head(x_decoder)
+        # Output
         if targets is None:
             return logits
         else:
-            B, L, C = logits.shape
+            batch_size, n_tokens, n_classes = logits.shape
+            logits_flat = logits.view(batch_size * n_tokens, n_classes)
+            targets_flat = targets.flatten()
             loss_unreduced = F.cross_entropy(
-                logits.view(B * L, C), targets.flatten(), reduction="none"
+                logits_flat, targets_flat, reduction="none"
             )
-            loss = loss_unreduced.dot(
-                pad_mask_destination.flatten().float()
-            )  # Ignore padding tokens inside loss function
+            loss = (
+                loss_unreduced * pad_mask_destination.flatten()
+            ).mean()  # Ignore padding tokens inside loss function
             return loss.item()
