@@ -78,7 +78,6 @@ class EncoderBlock(nn.Module):
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
-
         # Feed-forward layer
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
@@ -114,14 +113,12 @@ class DecoderBlock(nn.Module):
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
-
         # Cross-attention (with padding mask) layer
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.cross_attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout2 = nn.Dropout(dropout)
-
         # Feed-forward layer
         self.layernorm_3 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
