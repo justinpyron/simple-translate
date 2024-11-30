@@ -28,17 +28,12 @@ class AttentionHead(nn.Module):
         Q = self.query(x)
         K = self.key(x if cross_x is None else cross_x)
         V = self.value(x if cross_x is None else cross_x)
+        scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
         print(f"K.shape = {K.shape}")  # TODO: delete after debugging
         print(f"Q.shape = {Q.shape}")  # TODO: delete after debugging
-        scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
         print(f"scores.shape = {scores.shape}")  # TODO: delete after debugging
-        if attention_mask is None:
-            attention_mask = torch.ones_like(scores)
-        elif attention_mask == "autoregressive":
-            attention_mask = torch.tril(scores)
-        else:
-            pass
-        scores = scores.masked_fill(attention_mask == 0, float("-inf"))
+        if attention_mask is not None:
+            scores = scores.masked_fill(attention_mask == 0, float("-inf"))
         attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.dropout(attention_weights)
         out = attention_weights @ V
@@ -99,11 +94,9 @@ class EncoderBlock(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        attention_mask: torch.tensor = None,  # TODO: should this really be None by default?
+        attention_mask: torch.tensor,
     ) -> torch.tensor:
-        x = x + self.dropout1(
-            self.attention(self.layernorm_1(x), attention_mask=attention_mask)
-        )
+        x = x + self.dropout1(self.attention(self.layernorm_1(x), attention_mask))
         x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
         return x
 
@@ -144,16 +137,16 @@ class DecoderBlock(nn.Module):
     def forward(
         self,
         x: torch.tensor,
-        attention_mask: torch.tensor,  # TODO: should this default to None?
+        attention_mask: torch.tensor,
         cross_x: torch.tensor,
     ) -> torch.tensor:
+        n_examples, n_tokens, _ = x.shape
+        autoregressive_mask = torch.tril(torch.ones(n_examples, n_tokens, n_tokens))
         x = x + self.dropout1(
-            self.self_attention(self.layernorm_1(x), attention_mask="autoregressive")
+            self.self_attention(self.layernorm_1(x), autoregressive_mask)
         )
         x = x + self.dropout2(
-            self.cross_attention(
-                self.layernorm_2(x), attention_mask=attention_mask, cross_x=cross_x
-            )
+            self.cross_attention(self.layernorm_2(x), attention_mask, cross_x)
         )
         x = x + self.dropout3(self.mlp(self.layernorm_3(x)))
         return x
@@ -227,10 +220,10 @@ class SimpleTranslate(nn.Module):
 
         attention_mask_encoder = attention_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_source.shape[-1], -1
-        )
+        )  # TODO: rename this to padding_mask_encoder?
         attention_mask_decoder = attention_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_destination.shape[-1], -1
-        )
+        )  # TODO: rename this to padding_mask_decoder?
         position_idx_source = torch.arange(tokens_source.shape[1])
         position_idx_destination = torch.arange(tokens_destination.shape[1])
 
