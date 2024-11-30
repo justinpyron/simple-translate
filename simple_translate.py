@@ -72,13 +72,13 @@ class EncoderBlock(nn.Module):
         dropout: float,
     ) -> None:
         super().__init__()
-        # Self-attention (with padding mask) layer
+        # LAYER 1: Self-attention (with padding mask)
         self.layernorm_1 = nn.LayerNorm(dim_embedding)
         self.attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
-        # Feed-forward layer
+        # LAYER 2: Feed-forward
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
             nn.Linear(dim_embedding, dim_mlp),
@@ -107,19 +107,19 @@ class DecoderBlock(nn.Module):
         dropout: float,
     ) -> None:
         super().__init__()
-        # Self-attention (with autoregressive mask) layer
+        # LAYER 1: Self-attention (with autoregressive mask)
         self.layernorm_1 = nn.LayerNorm(dim_embedding)
         self.self_attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
-        # Cross-attention (with padding mask) layer
+        # LAYER 2: Cross-attention (with padding mask)
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.cross_attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout2 = nn.Dropout(dropout)
-        # Feed-forward layer
+        # LAYER 3: Feed-forward layer
         self.layernorm_3 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
             nn.Linear(dim_embedding, dim_mlp),
@@ -134,8 +134,8 @@ class DecoderBlock(nn.Module):
         attention_mask: torch.tensor,
         cross_x: torch.tensor,
     ) -> torch.tensor:
-        n_examples, n_tokens, _ = x.shape
-        autoregressive_mask = torch.tril(torch.ones(n_examples, n_tokens, n_tokens))
+        batch_size, n_tokens, _ = x.shape
+        autoregressive_mask = torch.tril(torch.ones(batch_size, n_tokens, n_tokens))
         x = x + self.dropout1(
             self.self_attention(self.layernorm_1(x), autoregressive_mask)
         )
@@ -237,18 +237,10 @@ class SimpleTranslate(nn.Module):
     def forward(
         self,
         tokens_source: torch.tensor,
-        tokens_destination: torch.tensor = None,
+        tokens_destination: torch.tensor,
+        targets: torch.tensor = None,
     ) -> Union[torch.tensor, float]:
-        # Training vs inference processing
-        if tokens_destination is None:
-            targets = None
-            tokens_destination = torch.full(
-                (tokens_source.shape[0], 1), self.token_id_bos
-            )
-        else:
-            targets = tokens_destination[:, 1:]
-            tokens_destination = tokens_destination[:, :-1]
-        # Attention masks
+        # STEP 1: Attention masks
         pad_mask_source = (tokens_source != self.token_id_pad).int()
         pad_mask_destination = (tokens_destination != self.token_id_pad).float()
         attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
@@ -257,13 +249,13 @@ class SimpleTranslate(nn.Module):
         attention_mask_decoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_destination.shape[-1], -1
         )
-        # Forward pass
+        # STEP 2: Forward pass
         x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
         x_decoder = self.forward_decoder(
             tokens_destination, attention_mask_decoder, x_encoder
         )
         logits = self.classification_head(x_decoder)
-        # Output
+        # STEP 3: Output
         if targets is None:
             return logits
         else:
