@@ -159,6 +159,59 @@ class DecoderBlock(nn.Module):
         return x
 
 
+class SimpleTranslate(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        max_sequence_length: int,
+        dim_embedding: int,
+        dim_head: int,
+        num_heads: int,
+        dim_mlp: int,
+        dropout: float,
+        num_blocks: int,
+    ) -> None:
+        super().__init__()
+        self.max_sequence_length = max_sequence_length
+        self.dim_embedding = dim_embedding
+        self.dim_head = dim_head
+        self.num_heads = num_heads
+        self.dim_mlp = dim_mlp
+        self.dropout = dropout
+        self.num_blocks = num_blocks
+        self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
+        self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
+        self.encoder_blocks = nn.Sequential(
+            *[
+                EncoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
+                for i in range(num_blocks)
+            ]
+        )
+        self.decoder_blocks = nn.Sequential(
+            *[
+                DecoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
+                for i in range(num_blocks)
+            ]
+        )
+        self.layernorm = nn.LayerNorm(dim_embedding)
+        self.classification_head = nn.Linear(dim_embedding, vocab_size)
+        self.apply(self.init_weights)
+
+    def init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            nn.init.xavier_normal_(module.weight)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        if isinstance(module, nn.Embedding):
+            nn.init.normal_(
+                module.weight, 0, 1 / torch.tensor(2 * self.dim_embedding).sqrt()
+            )
+            # Multiply by 2 bc token embedding and position embeddings get added
+
+    def forward(self):
+        pass
+
+
 # TODO: padding mask for decoder? Don't we need to ignore padding tokens when computing loss?
 # Otherwise, loss will be poluted by padding tokens.
 
