@@ -183,20 +183,20 @@ class SimpleTranslate(nn.Module):
 
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
         self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
-        self.encoder_blocks = nn.ModuleList(
+        self.encoder = nn.ModuleList(
             [
                 EncoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
                 for i in range(num_blocks)
             ]
         )
-        self.layernorm1 = nn.LayerNorm(dim_embedding)
-        self.decoder_blocks = nn.ModuleList(
+        self.layernorm_encoder = nn.LayerNorm(dim_embedding)
+        self.decoder = nn.ModuleList(
             [
                 DecoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
                 for i in range(num_blocks)
             ]
         )
-        self.layernorm2 = nn.LayerNorm(dim_embedding)
+        self.layernorm_decoder = nn.LayerNorm(dim_embedding)
         self.classification_head = nn.Linear(dim_embedding, vocab_size)
         self.apply(self.init_weights)
 
@@ -207,9 +207,11 @@ class SimpleTranslate(nn.Module):
                 nn.init.zeros_(module.bias)
         if isinstance(module, nn.Embedding):
             nn.init.normal_(
-                module.weight, 0, 1 / torch.tensor(2 * self.dim_embedding).sqrt()
+                module.weight,
+                mean=0,
+                std=1 / torch.tensor(2 * self.dim_embedding).sqrt(),
+                # Multiply by 2 bc token and position embeddings get added
             )
-            # Multiply by 2 bc token embedding and position embeddings get added
 
     def forward(
         self,
@@ -220,7 +222,9 @@ class SimpleTranslate(nn.Module):
         target: torch.tensor = None,
     ):  # TODO: add typehint for output (it'll be a Union)
 
-        # TODO: a better design would probably be this: input args = tokens_source, tokens_destination. Compute attention masks by comparing against pad_token + compute target from tokens_destination
+        # TODO: a better design would probably be this: input args = tokens_source, tokens_destination.
+        # Compute attention masks by comparing against pad_token + compute target from tokens_destination
+
         attention_mask_encoder = attention_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_source.shape[-1], -1
         )
@@ -231,23 +235,28 @@ class SimpleTranslate(nn.Module):
         position_idx_destination = torch.arange(tokens_destination.shape[1])
 
         # Encoder
+        # TODO: move this into a forward_encoder() function
         x_encoder = self.token_embedder(tokens_source) + self.position_embedder(
             position_idx_source
         )
-        for encoder_block in self.encoder_blocks:
-            x_encoder = encoder_block(x_encoder, attention_mask_encoder)
-        x_encoder = self.layernorm1(x_encoder)
+        for block in self.encoder:
+            x_encoder = block(x_encoder, attention_mask_encoder)
+        x_encoder = self.layernorm_encoder(x_encoder)
 
         # Decoder
+        # TODO: move this into a forward_decoder() function
         x_decoder = self.token_embedder(tokens_destination) + self.position_embedder(
             position_idx_destination
         )
-        for decoder_block in self.decoder_blocks:
-            x_decoder = decoder_block(x_decoder, attention_mask_decoder, x_encoder)
-        x_decoder = self.layernorm2(x_decoder)
+        for block in self.decoder:
+            x_decoder = block(x_decoder, attention_mask_decoder, x_encoder)
+        x_decoder = self.layernorm_decoder(x_decoder)
 
         # Classification head
+        # TODO: move this into a forward_classification_head() function?
         logits = self.classification_head(x_decoder)
+        # tagets = tokens_destination[:,1:] if tokens_destination.shape[1] > 1 else None # TODO: uncomment this
+        # TODO: before this line ^ you'll have to feed to the decoder this: tokens_destination[:,:-1]
         if target is None:
             return logits
         else:
@@ -255,5 +264,7 @@ class SimpleTranslate(nn.Module):
             loss_unreduced = F.cross_entropy(
                 logits.view(B * L, C), target.flatten(), reduction="none"
             )
-            loss = loss_unreduced.dot(attention_mask_destination.flatten().float())
+            loss = loss_unreduced.dot(
+                attention_mask_destination.flatten().float()
+            )  # Ignore padding tokens inside loss function
             return loss.item()
