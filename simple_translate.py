@@ -269,3 +269,25 @@ class SimpleTranslate(nn.Module):
                 loss_unreduced * pad_mask_destination.flatten()
             ).mean()  # Ignore padding tokens inside loss function
             return loss.item()
+
+    def generate(
+        self,
+        tokens_source: torch.tensor,
+        tokens_destination: torch.tensor = None,
+    ) -> torch.tensor:
+        """Generate translation for a single input example. Batches not handled."""
+        if tokens_destination is None:
+            tokens_destination = torch.tensor([[self.token_id_bos]])
+        for i in range(self.max_sequence_length - 1):
+            with torch.no_grad():
+                logits = self.forward(tokens_source.unsqueeze(0), tokens_destination)
+                logits_final_token = logits[:, -1, :]
+                probability = F.softmax(logits_final_token, dim=-1)
+                new_token = torch.multinomial(
+                    probability, num_samples=1
+                )  # Sample from probability distribution
+                # new_token = torch.argmax(probability, dim=-1).unsqueeze(0) # Take most likely
+                tokens_destination = torch.cat((tokens_destination, new_token), dim=-1)
+                if new_token[0, 0] == self.token_id_eos:
+                    break
+        return tokens_destination[0]
