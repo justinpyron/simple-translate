@@ -179,21 +179,24 @@ class SimpleTranslate(nn.Module):
         self.dim_mlp = dim_mlp
         self.dropout = dropout
         self.num_blocks = num_blocks
+        # TODO: add these arguments? token_id_bos, token_id_eos, token_id_pad?
+
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
         self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
-        self.encoder_blocks = nn.Sequential(
-            *[
+        self.encoder_blocks = nn.ModuleList(
+            [
                 EncoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
                 for i in range(num_blocks)
             ]
         )
-        self.decoder_blocks = nn.Sequential(
-            *[
+        self.layernorm1 = nn.LayerNorm(dim_embedding)
+        self.decoder_blocks = nn.ModuleList(
+            [
                 DecoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
                 for i in range(num_blocks)
             ]
         )
-        self.layernorm = nn.LayerNorm(dim_embedding)
+        self.layernorm2 = nn.LayerNorm(dim_embedding)
         self.classification_head = nn.Linear(dim_embedding, vocab_size)
         self.apply(self.init_weights)
 
@@ -208,13 +211,49 @@ class SimpleTranslate(nn.Module):
             )
             # Multiply by 2 bc token embedding and position embeddings get added
 
-    def forward(self):
-        pass
+    def forward(
+        self,
+        tokens_source: torch.tensor,
+        tokens_destination: torch.tensor,
+        attention_mask_source: torch.tensor,
+        attention_mask_destination: torch.tensor = None,
+        target: torch.tensor = None,
+    ):  # TODO: add typehint for output (it'll be a Union)
 
+        # TODO: a better design would probably be this: input args = tokens_source, tokens_destination. Compute attention masks by comparing against pad_token + compute target from tokens_destination
+        attention_mask_encoder = attention_mask_source.unsqueeze(dim=1).expand(
+            -1, tokens_source.shape[-1], -1
+        )
+        attention_mask_decoder = attention_mask_source.unsqueeze(dim=1).expand(
+            -1, tokens_destination.shape[-1], -1
+        )
+        position_idx_source = torch.arange(tokens_source.shape[1])
+        position_idx_destination = torch.arange(tokens_destination.shape[1])
 
-# TODO: padding mask for decoder? Don't we need to ignore padding tokens when computing loss?
-# Otherwise, loss will be poluted by padding tokens.
+        # Encoder
+        x_encoder = self.token_embedder(tokens_source) + self.position_embedder(
+            position_idx_source
+        )
+        for encoder_block in self.encoder_blocks:
+            x_encoder = encoder_block(x_encoder, attention_mask_encoder)
+        x_encoder = self.layernorm1(x_encoder)
 
-# [Encoder] Self-attention, padding mask
-# [Decoder] Self-attention, autoregressive mask
-# [Decoder] Cross-attention, padding mask
+        # Decoder
+        x_decoder = self.token_embedder(tokens_destination) + self.position_embedder(
+            position_idx_destination
+        )
+        for decoder_block in self.decoder_blocks:
+            x_decoder = decoder_block(x_decoder, attention_mask_decoder, x_encoder)
+        x_decoder = self.layernorm2(x_decoder)
+
+        # Classification head
+        logits = self.classification_head(x_decoder)
+        if target is None:
+            return logits
+        else:
+            B, L, C = logits.shape
+            loss_unreduced = F.cross_entropy(
+                logits.view(B * L, C), target.flatten(), reduction="none"
+            )
+            loss = loss_unreduced.dot(attention_mask_destination.flatten().float())
+            return loss.item()
