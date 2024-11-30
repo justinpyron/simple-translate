@@ -29,9 +29,6 @@ class AttentionHead(nn.Module):
         K = self.key(x if cross_x is None else cross_x)
         V = self.value(x if cross_x is None else cross_x)
         scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
-        print(f"K.shape = {K.shape}")  # TODO: delete after debugging
-        print(f"Q.shape = {Q.shape}")  # TODO: delete after debugging
-        print(f"scores.shape = {scores.shape}")  # TODO: delete after debugging
         if attention_mask is not None:
             scores = scores.masked_fill(attention_mask == 0, float("-inf"))
         attention_weights = F.softmax(scores, dim=-1)
@@ -163,6 +160,9 @@ class SimpleTranslate(nn.Module):
         dim_mlp: int,
         dropout: float,
         num_blocks: int,
+        token_id_bos: int,
+        token_id_eos: int,  # TODO: review if this is necessary
+        token_id_pad: int,
     ) -> None:
         super().__init__()
         self.max_sequence_length = max_sequence_length
@@ -172,7 +172,9 @@ class SimpleTranslate(nn.Module):
         self.dim_mlp = dim_mlp
         self.dropout = dropout
         self.num_blocks = num_blocks
-        # TODO: add these arguments? token_id_bos, token_id_eos, token_id_pad?
+        self.token_id_bos = token_id_bos
+        self.token_id_eos = token_id_eos
+        self.token_id_pad = token_id_pad
 
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
         self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
@@ -209,26 +211,28 @@ class SimpleTranslate(nn.Module):
     def forward(
         self,
         tokens_source: torch.tensor,
-        tokens_destination: torch.tensor,
-        attention_mask_source: torch.tensor,
-        attention_mask_destination: torch.tensor = None,
-        target: torch.tensor = None,
-    ):  # TODO: add typehint for output (it'll be a Union)
+        tokens_destination: torch.tensor = None,
+    ) -> Union[float, torch.tensor]:
+        if tokens_destination is None:
+            targets = None
+            tokens_destination = torch.full(
+                (tokens_source.shape[0], 1), self.token_id_bos
+            )
+        else:
+            targets = tokens_destination[:, 1:]
+            tokens_destination = tokens_destination[:, :-1]
 
-        # TODO: a better design would probably be this: input args = tokens_source, tokens_destination.
-        # Compute attention masks by comparing against pad_token + compute target from tokens_destination
-
-        attention_mask_encoder = attention_mask_source.unsqueeze(dim=1).expand(
+        pad_mask_source = (tokens_source != self.token_id_pad).int()
+        pad_mask_destination = (tokens_destination != self.token_id_pad).int()
+        attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_source.shape[-1], -1
-        )  # TODO: rename this to padding_mask_encoder?
-        attention_mask_decoder = attention_mask_source.unsqueeze(dim=1).expand(
+        )
+        attention_mask_decoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_destination.shape[-1], -1
-        )  # TODO: rename this to padding_mask_decoder?
-        position_idx_source = torch.arange(tokens_source.shape[1])
-        position_idx_destination = torch.arange(tokens_destination.shape[1])
+        )
 
-        # Encoder
-        # TODO: move this into a forward_encoder() function
+        # Encoder TODO: move this into a forward_encoder() function
+        position_idx_source = torch.arange(tokens_source.shape[1])
         x_encoder = self.token_embedder(tokens_source) + self.position_embedder(
             position_idx_source
         )
@@ -236,8 +240,8 @@ class SimpleTranslate(nn.Module):
             x_encoder = block(x_encoder, attention_mask_encoder)
         x_encoder = self.layernorm_encoder(x_encoder)
 
-        # Decoder
-        # TODO: move this into a forward_decoder() function
+        # Decoder TODO: move this into a forward_decoder() function
+        position_idx_destination = torch.arange(tokens_destination.shape[1])
         x_decoder = self.token_embedder(tokens_destination) + self.position_embedder(
             position_idx_destination
         )
@@ -245,19 +249,16 @@ class SimpleTranslate(nn.Module):
             x_decoder = block(x_decoder, attention_mask_decoder, x_encoder)
         x_decoder = self.layernorm_decoder(x_decoder)
 
-        # Classification head
-        # TODO: move this into a forward_classification_head() function?
+        # Classification head TODO: move this into a forward_classification_head() function?
         logits = self.classification_head(x_decoder)
-        # tagets = tokens_destination[:,1:] if tokens_destination.shape[1] > 1 else None # TODO: uncomment this
-        # TODO: before this line ^ you'll have to feed to the decoder this: tokens_destination[:,:-1]
-        if target is None:
+        if targets is None:
             return logits
         else:
             B, L, C = logits.shape
             loss_unreduced = F.cross_entropy(
-                logits.view(B * L, C), target.flatten(), reduction="none"
+                logits.view(B * L, C), targets.flatten(), reduction="none"
             )
             loss = loss_unreduced.dot(
-                attention_mask_destination.flatten().float()
+                pad_mask_destination.flatten().float()
             )  # Ignore padding tokens inside loss function
             return loss.item()
