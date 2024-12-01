@@ -81,10 +81,12 @@ class Trainer:
         loss.backward()
         self.optimizer.step()
         self.scheduler.step()
-        print(loss)  # TODO: delete
 
     def train_one_epoch(self) -> None:
-        pass
+        for i, batch in enumerate(self.dataloader_train):
+            self.train_one_batch(*batch)
+            if i > 10:  # TODO: delete after testing
+                break
 
     # def evaluate(
     #     self,
