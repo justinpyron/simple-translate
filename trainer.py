@@ -2,6 +2,7 @@ import os
 import time
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.optim import AdamW
@@ -42,7 +43,7 @@ class Trainer:
         self.loss_curve = list()
         self.birthday = datetime.now().strftime("%Y-%m-%dT%H_%M")
 
-    def prepare_batch(
+    def tokenize_batch(
         self,
         text_source: list[str],
         text_destination: list[str],
@@ -83,51 +84,63 @@ class Trainer:
         self.scheduler.step()
         self.examples_trained_on += self.batch_size
 
+    def evaluate_one_batch(
+        self,
+        tokens_source: list[str],
+        tokens_destination: list[str],
+    ) -> float:
+        with torch.no_grad():
+            loss = self.model(
+                tokens_source=tokens_source,
+                tokens_destination=tokens_destination[:, :-1],
+                targets=tokens_destination[:, 1:],
+            )
+        return loss
+
     def train_one_epoch(
         self,
         verbose: bool = False,
     ) -> None:
         self.model.train()
         dataset = pd.read_csv(
-            self.dataset_filename, header=0, chunksize=self.batch_size
-        )
-        for i, chunk in enumerate(dataset):
-            chunk = chunk.dropna(axis=0, how="any")
-            tokens_source, tokens_destination = self.prepare_batch(
-                chunk["en"].tolist(),
-                chunk["fr"].tolist(),
+            self.dataset_filename,
+            header=0,
+            chunksize=self.batch_size,
+        )  # TODO: add __init__ args for filename_train and filename_val
+        for i, text_batch in enumerate(dataset):
+            text_batch = text_batch.dropna(axis=0, how="any")
+            tokens_source, tokens_destination = self.tokenize_batch(
+                text_batch["en"].tolist(),
+                text_batch["fr"].tolist(),
             )
             self.train_one_batch(tokens_source, tokens_destination)
             if verbose and i % 100 == 0:
                 print(f"Batch {i:6}  |  Num examples = {self.batch_size * i:9}")
 
-    # def evaluate_one_batch(
-    #     self,
-    #     text_source: list[str],
-    #     text_destination: list[str],
-    # ) -> float:
-    #     tokens_source, tokens_destination = self.prepare_batch(
-    #         text_source, text_destination
-    #     )
-    #     with torch.no_grad():
-    #         loss = self.model(
-    #             tokens_source=tokens_source,
-    #             tokens_destination=tokens_destination[:, :-1],
-    #             targets=tokens_destination[:, 1:],
-    #         )
-    #         return loss
-
-    # def evaluate_one_epoch(self) -> None:
-    #     self.model.eval()
-    #     loss_list = list()
-    #     for i, batch in enumerate(self.dataloader_val):
-    #         loss = self.evaluate_one_batch(*batch)
-    #         loss_list.append(loss)
-    #         if i > 10:  # TODO: delete after testing
-    #             break
-    #     self.loss_curve.append(
-    #         (self.examples_trained_on, torch.tensor(loss_list).mean().item())
-    #     )
+    def evaluate_one_epoch(self) -> None:
+        self.model.eval()
+        dataset = pd.read_csv(
+            self.dataset_filename,
+            header=0,
+            chunksize=self.batch_size,
+        )  # TODO: add __init__ args for filename_train and filename_val
+        loss_list = list()
+        for i, text_batch in enumerate(dataset):
+            text_batch = text_batch.dropna(axis=0, how="any")
+            tokens_source, tokens_destination = self.tokenize_batch(
+                text_batch["en"].tolist(),
+                text_batch["fr"].tolist(),
+            )
+            loss = self.evaluate_one_batch(tokens_source, tokens_destination)
+            loss_list.append(loss)
+            if i > 100:  # TODO: delete after testing
+                break
+        self.loss_curve.append(
+            (
+                self.examples_trained_on,
+                np.array(loss_list).mean(),
+            )
+        )
 
     # def launch_train_session(
     #     self,
