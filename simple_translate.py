@@ -268,7 +268,7 @@ class SimpleTranslate(nn.Module):
             loss = (
                 loss_unreduced * pad_mask_destination.flatten()
             ).mean()  # Ignore padding tokens inside loss function
-            return loss.item()
+            return loss
 
     def generate(
         self,
