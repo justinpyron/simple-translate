@@ -173,6 +173,9 @@ class SimpleTranslate(nn.Module):
         self.token_id_bos = token_id_bos
         self.token_id_eos = token_id_eos
         self.token_id_pad = token_id_pad
+        self.register_buffer(
+            "position_idx", torch.arange(max_sequence_length), persistent=False
+        )
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
         self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
         self.encoder = nn.ModuleList(
@@ -210,12 +213,12 @@ class SimpleTranslate(nn.Module):
         tokens_source: torch.tensor,
         attention_mask_encoder: torch.tensor,
     ) -> torch.tensor:
-        position_idx_source = torch.arange(tokens_source.shape[1])
-        x_encoder = self.token_embedder(tokens_source) + self.position_embedder(
-            position_idx_source
-        )
-        for block in self.encoder:
-            x_encoder = block(x_encoder, attention_mask_encoder)
+        n_tokens = tokens_source.shape[1]
+        token_embedding = self.token_embedder(tokens_source)
+        position_embedding = self.position_embedder(self.position_idx[:n_tokens])
+        x_encoder = token_embedding + position_embedding
+        for encoder_block in self.encoder:
+            x_encoder = encoder_block(x_encoder, attention_mask_encoder)
         x_encoder = self.layernorm_encoder(x_encoder)
         return x_encoder
 
@@ -225,12 +228,12 @@ class SimpleTranslate(nn.Module):
         attention_mask_decoder: torch.tensor,
         x_encoder: torch.tensor,
     ) -> torch.tensor:
-        position_idx_destination = torch.arange(tokens_destination.shape[1])
-        x_decoder = self.token_embedder(tokens_destination) + self.position_embedder(
-            position_idx_destination
-        )
-        for block in self.decoder:
-            x_decoder = block(x_decoder, attention_mask_decoder, x_encoder)
+        n_tokens = tokens_destination.shape[1]
+        token_embedding = self.token_embedder(tokens_destination)
+        position_embedding = self.position_embedder(self.position_idx[:n_tokens])
+        x_decoder = token_embedding + position_embedding
+        for decoder_block in self.decoder:
+            x_decoder = decoder_block(x_decoder, attention_mask_decoder, x_encoder)
         x_decoder = self.layernorm_decoder(x_decoder)
         return x_decoder
 
