@@ -11,9 +11,6 @@ from transformers import PreTrainedTokenizerFast
 
 from simple_translate import SimpleTranslate
 
-# TODO: handle switching to different devices
-# DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
-
 
 class Trainer:
     def __init__(
@@ -29,8 +26,8 @@ class Trainer:
         T_mult: int,
         save_dir: str,
     ) -> None:
-        # self.model = model.to(DEVICE)
         self.model = model
+        self.set_device("cpu")
         self.tokenizer = tokenizer
         self.dataset_filename_train = dataset_filename_train
         self.dataset_filename_val = dataset_filename_val
@@ -45,6 +42,10 @@ class Trainer:
         self.best_loss = torch.inf
         self.loss_curve = list()
         self.birthday = datetime.now().strftime("%Y-%m-%dT%H_%M")
+
+    def set_device(self, device: str) -> None:
+        self.device = device
+        self.model = self.model.to(device)
 
     def tokenize_batch(
         self,
@@ -76,6 +77,8 @@ class Trainer:
         tokens_source: list[str],
         tokens_destination: list[str],
     ) -> None:
+        tokens_source = tokens_source.to(self.device)
+        tokens_destination = tokens_destination.to(self.device)
         loss = self.model(
             tokens_source=tokens_source,
             tokens_destination=tokens_destination[:, :-1],
@@ -92,13 +95,15 @@ class Trainer:
         tokens_source: list[str],
         tokens_destination: list[str],
     ) -> float:
+        tokens_source = tokens_source.to(self.device)
+        tokens_destination = tokens_destination.to(self.device)
         with torch.no_grad():
             loss = self.model(
                 tokens_source=tokens_source,
                 tokens_destination=tokens_destination[:, :-1],
                 targets=tokens_destination[:, 1:],
             )
-            return loss
+            return loss.cpu()
 
     def train_one_epoch(
         self,
