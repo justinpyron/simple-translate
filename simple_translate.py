@@ -30,6 +30,8 @@ class AttentionHead(nn.Module):
         V = self.value(x if cross_x is None else cross_x)
         scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
         if attention_mask is not None:
+            if attention_mask == "autoregressive":
+                attention_mask = torch.tril(scores)
             scores = scores.masked_fill(attention_mask == 0, float("-inf"))
         attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.dropout(attention_weights)
@@ -134,10 +136,8 @@ class DecoderBlock(nn.Module):
         attention_mask: torch.tensor,
         cross_x: torch.tensor,
     ) -> torch.tensor:
-        batch_size, n_tokens, _ = x.shape
-        autoregressive_mask = torch.tril(torch.ones(batch_size, n_tokens, n_tokens))
         x = x + self.dropout1(
-            self.self_attention(self.layernorm_1(x), autoregressive_mask)
+            self.self_attention(self.layernorm_1(x), "autoregressive")
         )
         x = x + self.dropout2(
             self.cross_attention(self.layernorm_2(x), attention_mask, cross_x)
