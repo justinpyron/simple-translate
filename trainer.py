@@ -15,6 +15,7 @@ from simple_translate import SimpleTranslate
 class Trainer:
     def __init__(
         self,
+        device: str,
         model: SimpleTranslate,
         tokenizer: PreTrainedTokenizerFast,
         dataset_filename_train: str,
@@ -26,7 +27,8 @@ class Trainer:
         T_mult: int,
         save_dir: str,
     ) -> None:
-        self.model = model
+        self.device = device
+        self.model = model.to(device)
         self.set_device("cpu")
         self.tokenizer = tokenizer
         self.dataset_filename_train = dataset_filename_train
@@ -42,10 +44,6 @@ class Trainer:
         self.best_loss = torch.inf
         self.loss_curve = list()
         self.birthday = datetime.now().strftime("%Y-%m-%dT%H_%M")
-
-    def set_device(self, device: str) -> None:
-        self.device = device
-        self.model = self.model.to(device)
 
     def tokenize_batch(
         self,
