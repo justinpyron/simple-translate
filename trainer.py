@@ -29,7 +29,6 @@ class Trainer:
     ) -> None:
         self.device = device
         self.model = model.to(device)
-        self.set_device("cpu")
         self.tokenizer = tokenizer
         self.dataset_filename_train = dataset_filename_train
         self.dataset_filename_val = dataset_filename_val
@@ -120,10 +119,8 @@ class Trainer:
                 text_batch["fr"].tolist(),
             )
             self.train_one_batch(tokens_source, tokens_destination)
-            if verbose and i % 10 == 0:  # TODO: increase to 100
+            if verbose and i % 100 == 0:
                 print(f"Batch {i:6}  |  Num examples = {self.batch_size * i:9}")
-            if i > 50:
-                break  # TODO: delete after testing
 
     def evaluate_one_epoch(self) -> None:
         self.model.eval()
@@ -141,8 +138,6 @@ class Trainer:
             )
             loss = self.evaluate_one_batch(tokens_source, tokens_destination)
             loss_list.append(loss)
-            if i > 50:
-                break  # TODO: delete after testing
         self.loss_curve.append((self.examples_trained_on, np.array(loss_list).mean()))
 
     def launch_session(
