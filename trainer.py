@@ -11,6 +11,8 @@ from transformers import PreTrainedTokenizerFast
 
 from simple_translate import SimpleTranslate
 
+import logging
+logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(
@@ -22,9 +24,6 @@ class Trainer:
         dataset_filename_val: str,
         batch_size: int,
         lr: float,
-        lr_min: float,
-        T_0: int,
-        T_mult: int,
         save_dir: str,
     ) -> None:
         self.device = device
@@ -34,9 +33,6 @@ class Trainer:
         self.dataset_filename_val = dataset_filename_val
         self.batch_size = batch_size
         self.optimizer = AdamW(self.model.parameters(), lr=lr)
-        self.scheduler = CosineAnnealingWarmRestarts(
-            self.optimizer, T_0=T_0, T_mult=T_mult, eta_min=lr_min
-        )
         self.save_dir = os.path.join(os.getcwd(), save_dir)
         os.makedirs(self.save_dir, exist_ok=True)
         self.examples_trained_on = 0
@@ -84,7 +80,6 @@ class Trainer:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.scheduler.step()
         self.examples_trained_on += self.batch_size
 
     def evaluate_one_batch(
@@ -120,6 +115,7 @@ class Trainer:
             )
             self.train_one_batch(tokens_source, tokens_destination)
             if verbose and i % 100 == 0:
+                logger.info(f"Batch {i:6}  |  Num examples = {self.batch_size * i:9}")
                 print(f"Batch {i:6}  |  Num examples = {self.batch_size * i:9}")
 
     def evaluate_one_epoch(self) -> None:
@@ -145,38 +141,32 @@ class Trainer:
         train_epochs: int,
         save_model: bool = True,
         verbose: bool = True,
-    ):
+    ) -> None:
         stopwatch = list()
         for i in range(train_epochs):
-
             start = time.time()
-            print("Train epoch...")
             self.train_one_epoch(verbose)
-            print(f"\tTime elapsed = {(time.time() - start)/60:.2f} min")
-            print("Evaluation epoch...")
             self.evaluate_one_epoch()
-            print(f"\tTime elapsed = {(time.time() - start)/60:.2f} min")
             stopwatch.append(time.time() - start)
-
             loss = self.loss_curve[-1][1]
             if loss < self.best_loss:
                 self.best_loss = loss
                 if save_model:
                     self.save()
             if verbose:
-                print(
+                logger.info(
                     " | ".join(
                         [
-                            f"Batches {self.examples_trained_on:5}",
+                            f"Examples {self.examples_trained_on:5}",
                             f"Loss = {loss:6.3f}",
                             f"Stopwatch = {sum(stopwatch)/60:5.1f} min ({sum(stopwatch) / 60 / len(stopwatch):4.2f} min/epoch)",
-                            f"lr = {self.scheduler._last_lr[0]:.2E}",
+                            # f"lr = {self.scheduler._last_lr[0]:.2E}",
                             f"best_loss = {self.best_loss:6.3f}",
                         ]
                     )
                 )
 
-    def save(self):
+    def save(self) -> None:
         torch.save(
             self.model.state_dict(),
             os.path.join(self.save_dir, f"model_{self.birthday}.pt"),

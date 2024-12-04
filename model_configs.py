@@ -5,7 +5,7 @@ model_configs = {
     "vocab_size": tokenizer.vocab_size,
     "max_sequence_length": 256,
     "dim_embedding": 128,
-    "dim_head": 64,
+    "dim_head": 16,
     "num_heads": 8,
     "dim_mlp": 256,
     "dropout": 0.1,
