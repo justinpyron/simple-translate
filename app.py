@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from model_configs import model_configs, tokenizer
 from simple_translate import SimpleTranslate
 
-FILENAME_MODEL_WEIGHTS = "model_2024-12-04T04_00.pt"
+FILENAME_MODEL_WEIGHTS = "model_for_app.pt"
 
 
 def translate(
