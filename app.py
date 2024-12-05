@@ -52,6 +52,7 @@ temperature = st.slider(
     max_value=1.0,
     step=0.05,
     value=0.7,
+    help="Controls randomness of generated translation. Lower values are less random.",
 )
 
 col1, col2 = st.columns(2)
