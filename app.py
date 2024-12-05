@@ -55,7 +55,7 @@ model = load_model()
 if "text_input" not in st.session_state:
     st.session_state["text_input"] = None
 if "text_output" not in st.session_state:
-    st.session_state["text_output"] = None
+    st.session_state["text_output"] = ""
 st.title("Simple Translate 🌎")
 with st.expander("How it works"):
     st.markdown("This app demos a simple neural machine translation model.")
@@ -86,19 +86,20 @@ with col1:
         if seed_button:
             seeds = fetch_seed_text(source)
             seed = seeds.sample().values[0]
+            st.session_state["text_input"] = seed
 with col2:
     st.header("French 🇫🇷")
 col1, col2 = st.columns(2)
 with col1:
     text_input = st.text_area(
         "english_input",
-        value=seed if seed_toggle and seed_button else None,
+        # value=seed if seed_toggle and seed_button else None,
+        value=st.session_state["text_input"],
         placeholder="Enter English text here",
         label_visibility="hidden",
     )
     if text_input is not None:
         st.session_state["text_input"] = text_input
-    st.markdown(st.session_state["text_input"])
 with col2:
     st.write("#####")
     text_output = st.empty()  # Empty in order to define it before the button
@@ -106,5 +107,5 @@ if st.button("Translate", type="primary", use_container_width=True):
     translation = translate(
         st.session_state["text_input"], model, tokenizer, temperature
     )
-    text_output.markdown("\n\n" + translation)
     st.session_state["text_output"] = translation
+text_output.markdown("\n\n" + st.session_state["text_output"])
