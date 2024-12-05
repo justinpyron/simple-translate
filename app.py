@@ -25,7 +25,7 @@ def load_model() -> SimpleTranslate:
 
 
 @st.cache_resource
-def fetch_seed_text(filename) -> pd.Series:
+def fetch_seed_text(filename: str) -> pd.Series:
     return pd.read_csv(filename)["sentences"]
 
 
@@ -54,6 +54,8 @@ st.set_page_config(page_title="Simple Translate", layout="centered", page_icon="
 model = load_model()
 if "text_input" not in st.session_state:
     st.session_state["text_input"] = None
+if "text_output" not in st.session_state:
+    st.session_state["text_output"] = None
 st.title("Simple Translate 🌎")
 with st.expander("How it works"):
     st.markdown("This app demos a simple neural machine translation model.")
@@ -84,7 +86,6 @@ with col1:
         if seed_button:
             seeds = fetch_seed_text(source)
             seed = seeds.sample().values[0]
-            # st.markdown(seed)
 with col2:
     st.header("French 🇫🇷")
 col1, col2 = st.columns(2)
@@ -95,14 +96,15 @@ with col1:
         placeholder="Enter English text here",
         label_visibility="hidden",
     )
-    st.session_state["text_input"] = text_input
+    if text_input is not None:
+        st.session_state["text_input"] = text_input
     st.markdown(st.session_state["text_input"])
 with col2:
     st.write("#####")
     text_output = st.empty()  # Empty in order to define it before the button
 if st.button("Translate", type="primary", use_container_width=True):
-    # translation = translate(text_input, model, tokenizer, temperature)
     translation = translate(
         st.session_state["text_input"], model, tokenizer, temperature
     )
     text_output.markdown("\n\n" + translation)
+    st.session_state["text_output"] = translation
