@@ -6,8 +6,7 @@ import torch.nn.functional as F
 from model_configs import model_configs, tokenizer
 from simple_translate import SimpleTranslate
 
-# FILENAME_MODEL_WEIGHTS = "model_for_app.pt"
-FILENAME_MODEL_WEIGHTS = "model_2024-12-05T04_17.pt"
+FILENAME_MODEL_WEIGHTS = "model_for_app.pt"
 SEED_OPTIONS = [
     "text_seeds/george_washington.csv",
     "text_seeds/thomas_jefferson.csv",
