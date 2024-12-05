@@ -64,7 +64,7 @@ temperature = st.slider(
     min_value=0.0,
     max_value=1.0,
     step=0.05,
-    value=0.7,
+    value=0.1,
     help="Controls randomness of generated translation. Lower values are less random.",
 )
 col1, col2 = st.columns(2)
@@ -72,14 +72,15 @@ with col1:
     st.header("English 🇬🇧")
     seed_toggle = st.toggle("Seed with examples")
     if seed_toggle:
-        source = st.segmented_control(
+        source = st.radio(
             label="Source",
             options=SEED_OPTIONS,
-            default=SEED_OPTIONS[0],
+            index=0,
             format_func=lambda x: x.split("/")[-1]
             .replace(".csv", "")
             .split("_")[-1]
             .capitalize(),
+            horizontal=True,
             help="Text taken from Wikipedia articles",
         )
         seed_button = st.button("Seed", use_container_width=True)
@@ -95,6 +96,7 @@ with col1:
         "english_input",
         # value=seed if seed_toggle and seed_button else None,
         value=st.session_state["text_input"],
+        height=200,
         placeholder="Enter English text here",
         label_visibility="hidden",
     )
