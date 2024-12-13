@@ -1,3 +1,4 @@
+from collections import namedtuple
 from typing import Union
 
 import torch
@@ -294,6 +295,8 @@ class SimpleTranslate(nn.Module):
             tokens_destination = torch.tensor([[self.token_id_bos]])
         with torch.no_grad():
             for i in range(self.max_sequence_length - 1):
+                # TODO: Update to keep generating until EOS. Or max_iters, which doesn't have to be max_sequence_length
+                # TODO: when computing forward pass, take the most recent max_sequence_length tokens.
                 logits = self.forward(tokens_source, tokens_destination)
                 logits_final_token = logits[:, -1, :]
                 probability = F.softmax(logits_final_token / temperature, dim=-1)
@@ -302,3 +305,51 @@ class SimpleTranslate(nn.Module):
                 if next_token[0, 0] == self.token_id_eos:
                     break
         return tokens_destination
+
+    def generate_with_beams(
+        self,
+        tokens_source: torch.tensor,
+        tokens_destination: torch.tensor = None,
+        temperature: float = 1e-3,
+        beam_width: int = 10,
+        max_new_tokens: int = 200,
+    ) -> torch.tensor:
+        """
+        Generate translation for a single input example using beam search.
+
+        Input tokens are expected to be in a batch of size 1.
+
+        Temperature contols the randomness of generated output.
+        The lower the temperature, the lower the randomness.
+        As temperature approaches 0, the probability of sampling
+        the most likely next token approaches 1.
+        """
+        self.eval()
+        if tokens_destination is None:
+            tokens_destination = torch.tensor([[self.token_id_bos]])
+        Beam = namedtuple("Beam", ["tokens", "cumulative_probability"])
+        with torch.no_grad():
+            beams = [Beam(tokens_destination, 1)]
+            for i in range(max_new_tokens):
+                new_beams = list()
+                for beam in beams:
+                    logits = self.forward(tokens_source, beam.tokens)[0, -1, :]
+                    probability = F.softmax(logits / temperature, dim=-1)
+                    candidate_tokens = probability.argsort(descending=True)[:beam_width]
+                    candidate_probabilities = probability[candidate_tokens]
+                    new_beams += [
+                        Beam(
+                            torch.cat((beam.tokens, torch.tensor([[token]])), dim=-1),
+                            beam.cumulative_probability * prob,
+                        )
+                        for token, prob in zip(
+                            candidate_tokens, candidate_probabilities
+                        )
+                    ]
+                new_beams.sort(key=lambda x: x.cumulative_probability, reverse=True)
+                beams = new_beams[:beam_width]
+                # Stopping condition
+                tokens = torch.vstack([beam.tokens for beam in beams])
+                if (tokens == self.token_id_eos).any(dim=-1).all():
+                    break
+        return beams[0].tokens
