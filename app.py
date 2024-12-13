@@ -33,9 +33,9 @@ def translate(
     model,
     tokenizer,
     temperature: float,
+    beams: int,
 ) -> torch.tensor:
     """Generate translation for a single input example. Batches not handled."""
-    temperature = max(1e-3, temperature)  # temperature must be positive
     tokens_source = tokenizer(
         text_source,
         truncation=True,
@@ -44,7 +44,11 @@ def translate(
         return_token_type_ids=False,
         return_tensors="pt",
     )["input_ids"]
-    tokens_destination = model.generate(tokens_source, temperature=temperature)
+    if temperature is not None:
+        temperature = max(1e-3, temperature)  # temperature must be positive
+        tokens_destination = model.generate(tokens_source, temperature=temperature)
+    if beams is not None:
+        tokens_destination = model.generate_with_beams(tokens_source, beam_width=beams)
     translation = tokenizer.decode(tokens_destination[0], skip_special_tokens=True)
     return translation
 
@@ -68,14 +72,35 @@ if "text_output" not in st.session_state:
 st.title("Simple Translate 🌎")
 with st.expander("What is this app?"):
     st.markdown(what_is_this_app)
-temperature = st.slider(
-    "Temperature",
-    min_value=0.0,
-    max_value=1.0,
-    step=0.05,
-    value=0.1,
-    help="Controls randomness of generated translation. Lower values are less random.",
-)
+col1, col2 = st.columns([1, 2])
+with col1:
+    gen_options = ["Sample with temperature", "Beam search"]
+    gen_strategy = st.radio(
+        label="Generation Strategy",
+        options=gen_options,
+        help="How to generate the translation.\n\nBeam search is deterministic. Sampling with temperature is not.",
+    )
+with col2:
+    temperature = None
+    beams = None
+    if gen_strategy == gen_options[0]:
+        temperature = st.slider(
+            "Temperature",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.05,
+            value=0.1,
+            help="Controls randomness of generated translation. Lower values are less random.",
+        )
+    else:
+        beams = st.slider(
+            "Number of beams",
+            min_value=1,
+            max_value=20,
+            step=1,
+            value=5,
+            help="Controls how wide of a search to conduct when (greedily) computing most likely translation.",
+        )
 col1, col2 = st.columns(2)
 with col1:
     st.header("English 🇬🇧")
@@ -116,7 +141,7 @@ with col2:
     text_output = st.empty()  # Empty in order to define it before the button
 if st.button("Translate", type="primary", use_container_width=True):
     translation = translate(
-        st.session_state["text_input"], model, tokenizer, temperature
+        st.session_state["text_input"], model, tokenizer, temperature, beams
     )
     st.session_state["text_output"] = translation
 text_output.markdown("\n\n" + st.session_state["text_output"])
