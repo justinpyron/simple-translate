@@ -275,7 +275,7 @@ class SimpleTranslate(nn.Module):
             ).mean()  # Ignore padding tokens inside loss function
             return loss
 
-    def generate(
+    def generate_with_temp(
         self,
         tokens_source: torch.tensor,
         tokens_destination: torch.tensor = None,
