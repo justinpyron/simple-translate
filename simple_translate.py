@@ -279,6 +279,7 @@ class SimpleTranslate(nn.Module):
         self,
         tokens_source: torch.tensor,
         tokens_destination: torch.tensor = None,
+        max_new_tokens: int = 500,
         temperature: float = 1e-3,
     ) -> torch.tensor:
         """
@@ -296,10 +297,11 @@ class SimpleTranslate(nn.Module):
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
         with torch.no_grad():
-            for i in range(self.max_sequence_length - 1):
-                # TODO: Update to keep generating until EOS. Or max_iters, which doesn't have to be max_sequence_length
-                # TODO: when computing forward pass, take the most recent max_sequence_length tokens.
-                logits = self.forward(tokens_source, tokens_destination)
+            for i in range(max_new_tokens):
+                logits = self.forward(
+                    tokens_source[:, -self.max_sequence_length :],
+                    tokens_destination[:, -self.max_sequence_length :],
+                )
                 logits_final_token = logits[:, -1, :]
                 probability = F.softmax(logits_final_token / temperature, dim=-1)
                 next_token = torch.multinomial(probability, num_samples=1)
@@ -312,8 +314,8 @@ class SimpleTranslate(nn.Module):
         self,
         tokens_source: torch.tensor,
         tokens_destination: torch.tensor = None,
-        beam_width: int = 10,
-        max_new_tokens: int = 200,
+        max_new_tokens: int = 500,
+        beam_width: int = 5,
     ) -> torch.tensor:
         """
         Generate translation for a single input example using beam search.
@@ -331,7 +333,10 @@ class SimpleTranslate(nn.Module):
             for i in range(max_new_tokens):
                 candidate_beams = list()
                 for beam in beams:
-                    logits = self.forward(tokens_source, beam.tokens)[0, -1, :]
+                    logits = self.forward(
+                        tokens_source[:, -self.max_sequence_length :],
+                        beam.tokens[:, -self.max_sequence_length :],
+                    )[0, -1, :]
                     probability = F.softmax(logits, dim=-1)
                     candidate_tokens = probability.argsort(descending=True)[:beam_width]
                     candidate_prob = probability[candidate_tokens]
