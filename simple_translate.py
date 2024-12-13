@@ -326,12 +326,12 @@ class SimpleTranslate(nn.Module):
         self.eval()
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
-        Beam = namedtuple("Beam", ["tokens", "log_probability"])
+        Beam = namedtuple("Beam", ["tokens", "log_probability", "is_finished"])
         finished_beams = list()
         with torch.no_grad():
-            beams = [Beam(tokens_destination, 0)]
+            beams = [Beam(tokens_destination, 0, False)]
             for i in range(max_new_tokens):
-                candidate_beams = list()
+                candidates = list()
                 for beam in beams:
                     logits = self.forward(
                         tokens_source[:, -self.max_sequence_length :],
@@ -340,20 +340,19 @@ class SimpleTranslate(nn.Module):
                     probability = F.softmax(logits, dim=-1)
                     candidate_tokens = probability.argsort(descending=True)[:beam_width]
                     candidate_prob = probability[candidate_tokens]
-                    candidate_beams += [
+                    candidates += [
                         Beam(
                             torch.cat((beam.tokens, torch.tensor([[token]])), dim=-1),
                             beam.log_probability + np.log(prob),
+                            token == self.token_id_eos,
                         )
                         for token, prob in zip(candidate_tokens, candidate_prob)
                     ]
-                candidate_beams.sort(key=lambda x: x.log_probability, reverse=True)
-                beams = list()
-                for beam in candidate_beams[:beam_width]:
-                    if beam.tokens[0, -1] == self.token_id_eos:
-                        finished_beams.append(beam)
-                    else:
-                        beams.append(beam)
+                candidates = sorted(
+                    candidates, key=lambda x: x.log_probability, reverse=True
+                )[:beam_width]
+                beams = [beam for beam in candidates if not beam.is_finished]
+                finished_beams += [beam for beam in candidates if beam.is_finished]
                 if len(finished_beams) >= beam_width:
                     break
         finished_beams.sort(key=lambda x: x.log_probability, reverse=True)
