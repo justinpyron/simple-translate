@@ -46,7 +46,9 @@ def translate(
     )["input_ids"]
     if temperature is not None:
         temperature = max(1e-3, temperature)  # temperature must be positive
-        tokens_destination = model.generate(tokens_source, temperature=temperature)
+        tokens_destination = model.generate_with_temp(
+            tokens_source, temperature=temperature
+        )
     if beams is not None:
         tokens_destination = model.generate_with_beams(tokens_source, beam_width=beams)
     translation = tokenizer.decode(tokens_destination[0], skip_special_tokens=True)
