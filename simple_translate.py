@@ -1,5 +1,7 @@
+from collections import namedtuple
 from typing import Union
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -273,16 +275,18 @@ class SimpleTranslate(nn.Module):
             ).mean()  # Ignore padding tokens inside loss function
             return loss
 
-    def generate(
+    def generate_with_temp(
         self,
         tokens_source: torch.tensor,
         tokens_destination: torch.tensor = None,
+        max_new_tokens: int = 500,
         temperature: float = 1e-3,
     ) -> torch.tensor:
         """
         Generate translation for a single input example.
 
         Input tokens are expected to be in a batch of size 1.
+        Returns tokens in a batch of size 1.
 
         Temperature contols the randomness of generated output.
         The lower the temperature, the lower the randomness.
@@ -293,8 +297,11 @@ class SimpleTranslate(nn.Module):
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
         with torch.no_grad():
-            for i in range(self.max_sequence_length - 1):
-                logits = self.forward(tokens_source, tokens_destination)
+            for i in range(max_new_tokens):
+                logits = self.forward(
+                    tokens_source[:, -self.max_sequence_length :],
+                    tokens_destination[:, -self.max_sequence_length :],
+                )
                 logits_final_token = logits[:, -1, :]
                 probability = F.softmax(logits_final_token / temperature, dim=-1)
                 next_token = torch.multinomial(probability, num_samples=1)
@@ -302,3 +309,51 @@ class SimpleTranslate(nn.Module):
                 if next_token[0, 0] == self.token_id_eos:
                     break
         return tokens_destination
+
+    def generate_with_beams(
+        self,
+        tokens_source: torch.tensor,
+        tokens_destination: torch.tensor = None,
+        max_new_tokens: int = 500,
+        beam_width: int = 5,
+    ) -> torch.tensor:
+        """
+        Generate translation for a single input example using beam search.
+
+        Input tokens are expected to be in a batch of size 1.
+        Returns tokens in a batch of size 1.
+        """
+        self.eval()
+        if tokens_destination is None:
+            tokens_destination = torch.tensor([[self.token_id_bos]])
+        Beam = namedtuple("Beam", ["tokens", "log_probability", "is_finished"])
+        finished_beams = list()
+        with torch.no_grad():
+            beams = [Beam(tokens_destination, 0, False)]
+            for i in range(max_new_tokens):
+                candidates = list()
+                for beam in beams:
+                    logits = self.forward(
+                        tokens_source[:, -self.max_sequence_length :],
+                        beam.tokens[:, -self.max_sequence_length :],
+                    )[0, -1, :]
+                    probability = F.softmax(logits, dim=-1)
+                    candidate_tokens = probability.argsort(descending=True)[:beam_width]
+                    candidate_prob = probability[candidate_tokens]
+                    candidates += [
+                        Beam(
+                            torch.cat((beam.tokens, torch.tensor([[token]])), dim=-1),
+                            beam.log_probability + np.log(prob),
+                            token == self.token_id_eos,
+                        )
+                        for token, prob in zip(candidate_tokens, candidate_prob)
+                    ]
+                candidates = sorted(
+                    candidates, key=lambda x: x.log_probability, reverse=True
+                )[:beam_width]
+                beams = [beam for beam in candidates if not beam.is_finished]
+                finished_beams += [beam for beam in candidates if beam.is_finished]
+                if len(finished_beams) >= beam_width:
+                    break
+        finished_beams.sort(key=lambda x: x.log_probability, reverse=True)
+        return finished_beams[0].tokens
