@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from model_configs import model_configs, tokenizer
 from simple_translate import SimpleTranslate
 
-FILENAME_MODEL_WEIGHTS = "model_for_app.pt"
+FILENAME_MODEL_WEIGHTS = "model_for_app_cpu.pt"
 SEED_OPTIONS = [
     "text_seeds/george_washington.csv",
     "text_seeds/thomas_jefferson.csv",
@@ -17,9 +17,7 @@ SEED_OPTIONS = [
 @st.cache_resource
 def load_model() -> SimpleTranslate:
     model = SimpleTranslate(**model_configs)
-    model.load_state_dict(
-        torch.load(FILENAME_MODEL_WEIGHTS, map_location=torch.device("cpu"))
-    )
+    model.load_state_dict(torch.load(FILENAME_MODEL_WEIGHTS, weights_only=True))
     return model
 
 
