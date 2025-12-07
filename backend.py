@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from transformers import PreTrainedTokenizerFast
 
 from interfaces import TranslateRequest, TranslateResponse
+from model_configs import model_configs
 from simple_translate import SimpleTranslate
 
 # Create Modal app
@@ -25,7 +26,7 @@ volume = modal.Volume.from_name("simple-translate")
 @app.cls(
     image=image,
     volumes={"/data": volume},
-    cpu=2.0,
+    cpu=1,
 )
 class SimpleTranslateServer:
     """Modal class for serving SimpleTranslate model inference."""
@@ -37,22 +38,6 @@ class SimpleTranslateServer:
         self.tokenizer = PreTrainedTokenizerFast.from_pretrained(
             "/data/tokenizer_1000/"
         )
-
-        # Prepare model configs
-        model_configs = {
-            "vocab_size": self.tokenizer.vocab_size,
-            "max_sequence_length": 256,
-            "dim_embedding": 128,
-            "dim_head": 16,
-            "num_heads": 8,
-            "dim_mlp": 256,
-            "dropout": 0.1,
-            "num_blocks": 4,
-            "token_id_bos": self.tokenizer.bos_token_id,
-            "token_id_eos": self.tokenizer.eos_token_id,
-            "token_id_pad": self.tokenizer.pad_token_id,
-        }
-
         # Load model from volume
         self.model = SimpleTranslate(**model_configs)
         self.model.load_state_dict(
@@ -112,39 +97,32 @@ class SimpleTranslateServer:
         )
         return translation
 
+    @modal.asgi_app()
+    def fastapi_server(self):
+        """Create and configure the FastAPI application."""
+        server = FastAPI(title="SimpleTranslate API")
 
-# Create FastAPI app
-web_app = FastAPI(title="SimpleTranslate API")
+        @server.post("/translate", response_model=TranslateResponse)
+        async def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
+            """
+            Translate English text to French.
 
+            Args:
+                request: Translation request with source text and generation parameters
 
-@web_app.post("/translate", response_model=TranslateResponse)
-async def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
-    """
-    Translate English text to French.
+            Returns:
+                Translation response with the translated text
+            """
+            translation = self.translate(
+                text_source=request.text_source,
+                temperature=request.temperature,
+                beams=request.beams,
+            )
+            return TranslateResponse(translation=translation)
 
-    Args:
-        request: Translation request with source text and generation parameters
+        @server.get("/health")
+        async def health_check():
+            """Health check endpoint."""
+            return {"status": "healthy"}
 
-    Returns:
-        Translation response with the translated text
-    """
-    server = SimpleTranslateServer()
-    translation = server.translate.remote(
-        text_source=request.text_source,
-        temperature=request.temperature,
-        beams=request.beams,
-    )
-    return TranslateResponse(translation=translation)
-
-
-@web_app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
-
-
-# Expose the FastAPI app via Modal
-@app.function(image=image)
-@modal.asgi_app()
-def fastapi_app():
-    return web_app
+        return server
