@@ -4,7 +4,9 @@ import streamlit as st
 from interfaces import TranslateRequest, TranslateResponse
 
 # TODO: Update with proper URL
-SERVER_URL = "https://your-modal-app-url.modal.run"
+SERVER_URL = (
+    "https://justinpyron--simple-translate-simpletranslateserver--3465d9-dev.modal.run"
+)
 SERVER_ENDPOINT_PATH = "translate"
 
 
