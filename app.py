@@ -5,7 +5,8 @@ import streamlit as st
 from interfaces import TranslateRequest, TranslateResponse
 
 # TODO: Update with proper URL
-MODAL_SERVER_URL = "https://your-modal-app-url.modal.run"
+SERVER_URL = "https://your-modal-app-url.modal.run"
+SERVER_ENDPOINT_PATH = "translate"
 SEED_OPTIONS = [
     "text_seeds/george_washington.csv",
     "text_seeds/thomas_jefferson.csv",
@@ -43,7 +44,7 @@ def translate(
     # Call Modal server
     try:
         response = httpx.post(
-            f"{MODAL_SERVER_URL}/translate",
+            f"{SERVER_URL}/{SERVER_ENDPOINT_PATH}",
             json=request.model_dump(),
             timeout=30.0,
         )
