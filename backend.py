@@ -12,9 +12,9 @@ image = (
         "pydantic==2.10.4",
         "fastapi==0.124.0",
     )
-    .add_local_file("interfaces.py", remote_path="/root/interfaces.py")
-    .add_local_file("model_configs.py", remote_path="/root/model_configs.py")
-    .add_local_file("simple_translate.py", remote_path="/root/simple_translate.py")
+    .add_local_python_source("interfaces")
+    .add_local_python_source("model_configs")
+    .add_local_python_source("simple_translate")
 )
 volume = modal.Volume.from_name("simple-translate")
 
