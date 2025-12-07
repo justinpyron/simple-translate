@@ -2,7 +2,9 @@ import httpx
 import pandas as pd
 import streamlit as st
 
-# Modal server URL - update this with your deployed Modal endpoint
+from interfaces import TranslateRequest, TranslateResponse
+
+# TODO: Update with proper URL
 MODAL_SERVER_URL = "https://your-modal-app-url.modal.run"
 SEED_OPTIONS = [
     "text_seeds/george_washington.csv",
@@ -32,23 +34,22 @@ def translate(
     Returns:
         The translated French text
     """
-    # Prepare request payload
-    payload = {
-        "text_source": text_source,
-        "temperature": temperature,
-        "beams": beams,
-    }
+    request = TranslateRequest(
+        text_source=text_source,
+        temperature=temperature,
+        beams=beams,
+    )
 
     # Call Modal server
     try:
         response = httpx.post(
             f"{MODAL_SERVER_URL}/translate",
-            json=payload,
+            json=request.model_dump(),
             timeout=30.0,
         )
         response.raise_for_status()
-        result = response.json()
-        return result["translation"]
+        translate_response = TranslateResponse.model_validate(response.json())
+        return translate_response.translation
     except httpx.HTTPError as e:
         st.error(f"Error calling translation server: {e}")
         return ""

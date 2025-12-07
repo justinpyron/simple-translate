@@ -5,22 +5,10 @@ from typing import Optional
 import modal
 import torch
 from fastapi import FastAPI
-from pydantic import BaseModel
 from transformers import PreTrainedTokenizerFast
 
+from interfaces import TranslateRequest, TranslateResponse
 from simple_translate import SimpleTranslate
-
-
-# Define Pydantic models for API
-class TranslateRequest(BaseModel):
-    text_source: str
-    temperature: Optional[float] = None
-    beams: Optional[int] = None
-
-
-class TranslateResponse(BaseModel):
-    translation: str
-
 
 # Create Modal app
 app = modal.App("simple-translate")
