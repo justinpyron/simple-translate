@@ -23,10 +23,10 @@ class AttentionHead(nn.Module):
 
     def forward(
         self,
-        x: torch.tensor,
-        attention_mask: Union[str, torch.tensor] = None,
-        cross_x: torch.tensor = None,
-    ) -> torch.tensor:
+        x: torch.Tensor,
+        attention_mask: Union[str, torch.Tensor] = None,
+        cross_x: torch.Tensor = None,
+    ) -> torch.Tensor:
         Q = self.query(x)
         K = self.key(x if cross_x is None else cross_x)
         V = self.value(x if cross_x is None else cross_x)
@@ -57,10 +57,10 @@ class MultiHeadedAttention(nn.Module):
 
     def forward(
         self,
-        x: torch.tensor,
-        attention_mask: torch.tensor = None,
-        cross_x: torch.tensor = None,
-    ) -> torch.tensor:
+        x: torch.Tensor,
+        attention_mask: torch.Tensor = None,
+        cross_x: torch.Tensor = None,
+    ) -> torch.Tensor:
         x = torch.cat([head(x, attention_mask, cross_x) for head in self.heads], dim=-1)
         x = self.linear(x)
         return x
@@ -93,9 +93,9 @@ class EncoderBlock(nn.Module):
 
     def forward(
         self,
-        x: torch.tensor,
-        attention_mask: torch.tensor,
-    ) -> torch.tensor:
+        x: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ) -> torch.Tensor:
         x = x + self.dropout1(self.attention(self.layernorm_1(x), attention_mask))
         x = x + self.dropout2(self.mlp(self.layernorm_2(x)))
         return x
@@ -134,10 +134,10 @@ class DecoderBlock(nn.Module):
 
     def forward(
         self,
-        x: torch.tensor,
-        attention_mask: torch.tensor,
-        cross_x: torch.tensor,
-    ) -> torch.tensor:
+        x: torch.Tensor,
+        attention_mask: torch.Tensor,
+        cross_x: torch.Tensor,
+    ) -> torch.Tensor:
         x = x + self.dropout1(
             self.self_attention(self.layernorm_1(x), "autoregressive")
         )
@@ -212,9 +212,9 @@ class SimpleTranslate(nn.Module):
 
     def forward_encoder(
         self,
-        tokens_source: torch.tensor,
-        attention_mask_encoder: torch.tensor,
-    ) -> torch.tensor:
+        tokens_source: torch.Tensor,
+        attention_mask_encoder: torch.Tensor,
+    ) -> torch.Tensor:
         n_tokens = tokens_source.shape[1]
         token_embedding = self.token_embedder(tokens_source)
         position_embedding = self.position_embedder(self.position_idx[:n_tokens])
@@ -226,10 +226,10 @@ class SimpleTranslate(nn.Module):
 
     def forward_decoder(
         self,
-        tokens_destination: torch.tensor,
-        attention_mask_decoder: torch.tensor,
-        x_encoder: torch.tensor,
-    ) -> torch.tensor:
+        tokens_destination: torch.Tensor,
+        attention_mask_decoder: torch.Tensor,
+        x_encoder: torch.Tensor,
+    ) -> torch.Tensor:
         n_tokens = tokens_destination.shape[1]
         token_embedding = self.token_embedder(tokens_destination)
         position_embedding = self.position_embedder(self.position_idx[:n_tokens])
@@ -241,10 +241,10 @@ class SimpleTranslate(nn.Module):
 
     def forward(
         self,
-        tokens_source: torch.tensor,
-        tokens_destination: torch.tensor,
-        targets: torch.tensor = None,
-    ) -> Union[torch.tensor, float]:
+        tokens_source: torch.Tensor,
+        tokens_destination: torch.Tensor,
+        targets: torch.Tensor = None,
+    ) -> Union[torch.Tensor, float]:
         # STEP 1: Attention masks
         pad_mask_source = (tokens_source != self.token_id_pad).int()
         pad_mask_destination = (tokens_destination != self.token_id_pad).float()
@@ -277,11 +277,11 @@ class SimpleTranslate(nn.Module):
 
     def generate_with_temp(
         self,
-        tokens_source: torch.tensor,
-        tokens_destination: torch.tensor = None,
+        tokens_source: torch.Tensor,
+        tokens_destination: torch.Tensor = None,
         max_new_tokens: int = 500,
         temperature: float = 1e-3,
-    ) -> torch.tensor:
+    ) -> torch.Tensor:
         """
         Generate translation for a single input example.
 
@@ -312,11 +312,11 @@ class SimpleTranslate(nn.Module):
 
     def generate_with_beams(
         self,
-        tokens_source: torch.tensor,
-        tokens_destination: torch.tensor = None,
+        tokens_source: torch.Tensor,
+        tokens_destination: torch.Tensor = None,
         max_new_tokens: int = 500,
         beam_width: int = 5,
-    ) -> torch.tensor:
+    ) -> torch.Tensor:
         """
         Generate translation for a single input example using beam search.
 
