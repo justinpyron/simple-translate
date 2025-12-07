@@ -9,17 +9,19 @@ from interfaces import TranslateRequest, TranslateResponse
 from model_configs import model_configs
 from simple_translate import SimpleTranslate
 
-# Create Modal app
 app = modal.App("simple-translate")
-
-# Define the Modal image with all required dependencies
-image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "torch==2.5.1",
-    "transformers==4.46.3",
-    "numpy==2.1.3",
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install(
+        "torch==2.5.1",
+        "transformers==4.46.3",
+        "numpy==2.1.3",
+        "pydantic==2.10.4",
+    )
+    .add_local_python_source("interfaces.py")
+    .add_local_python_source("model_configs.py")
+    .add_local_python_source("simple_translate.py")
 )
-
-# Reference to the Modal volume containing model weights and tokenizer
 volume = modal.Volume.from_name("simple-translate")
 
 
