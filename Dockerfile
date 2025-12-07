@@ -3,9 +3,10 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy requirements and install dependencies
-# TODO: Build requirements.txt from pyproject.toml inside GitHub Actions workflow
 COPY requirements-app.txt .
 RUN pip install --no-cache-dir -r requirements-app.txt
+# NOTE: requirements-app.txt is generated during the CI/CD workflow from pyproject.toml using Poetry's export command.
+# This keeps dependencies in sync without manual duplication. See .github/workflows/build-and-push-image.yml.
 
 # Copy only the necessary application files
 COPY app.py interfaces.py ./

@@ -23,6 +23,7 @@ ENV/
 
 # Git
 .git/
+.github/
 .gitignore
 .gitattributes
 
