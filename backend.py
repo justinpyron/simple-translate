@@ -49,7 +49,6 @@ class SimpleTranslateServer:
         )
         self.model.eval()
 
-    @modal.method()
     def translate(
         self,
         text_source: str,
@@ -109,7 +108,7 @@ class SimpleTranslateServer:
         server = FastAPI(title="SimpleTranslate API")
 
         @server.post("/translate", response_model=TranslateResponse)
-        async def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
+        def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
             """
             Translate English text to French.
 
