@@ -8,7 +8,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  build-and-push-frontend:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -31,9 +31,9 @@ jobs:
       - name: Export requirements from Poetry
         run: |
           poetry export --only main -f requirements.txt \
-            --output requirements-app.txt --without-hashes
-          echo "Generated requirements-app.txt:"
-          cat requirements-app.txt
+            --output requirements.txt --without-hashes
+          echo "Generated requirements.txt:"
+          cat requirements.txt
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
