@@ -1,5 +1,4 @@
 import httpx
-import pandas as pd
 import streamlit as st
 
 from interfaces import TranslateRequest, TranslateResponse
@@ -7,16 +6,6 @@ from interfaces import TranslateRequest, TranslateResponse
 # TODO: Update with proper URL
 SERVER_URL = "https://your-modal-app-url.modal.run"
 SERVER_ENDPOINT_PATH = "translate"
-SEED_OPTIONS = [
-    "text_seeds/george_washington.csv",
-    "text_seeds/thomas_jefferson.csv",
-    "text_seeds/abraham_lincoln.csv",
-]
-
-
-@st.cache_resource
-def fetch_seed_text(filename: str) -> pd.Series:
-    return pd.read_csv(filename)["sentences"]
 
 
 def translate(
@@ -41,7 +30,6 @@ def translate(
         beams=beams,
     )
 
-    # Call Modal server
     try:
         response = httpx.post(
             f"{SERVER_URL}/{SERVER_ENDPOINT_PATH}",
@@ -106,31 +94,12 @@ with col2:
 col1, col2 = st.columns(2)
 with col1:
     st.header("English 🇬🇧")
-    seed_toggle = st.toggle("Seed with examples")
-    if seed_toggle:
-        source = st.radio(
-            label="Source",
-            options=SEED_OPTIONS,
-            index=0,
-            format_func=lambda x: x.split("/")[-1]
-            .replace(".csv", "")
-            .split("_")[-1]
-            .capitalize(),
-            horizontal=True,
-            help="Text taken from Wikipedia articles",
-        )
-        seed_button = st.button("Seed", use_container_width=True)
-        if seed_button:
-            seeds = fetch_seed_text(source)
-            seed = seeds.sample().values[0]
-            st.session_state["text_input"] = seed
 with col2:
     st.header("French 🇫🇷")
 col1, col2 = st.columns(2)
 with col1:
     text_input = st.text_area(
         "english_input",
-        # value=seed if seed_toggle and seed_button else None,
         value=st.session_state["text_input"],
         height=200,
         placeholder="Enter English text here",
