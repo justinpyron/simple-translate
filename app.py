@@ -1,12 +1,9 @@
+import httpx
 import pandas as pd
 import streamlit as st
-import torch
-import torch.nn.functional as F
 
-from model_configs import model_configs, tokenizer
-from simple_translate import SimpleTranslate
-
-FILENAME_MODEL_WEIGHTS = "model_for_app_cpu.pt"
+# Modal server URL - update this with your deployed Modal endpoint
+MODAL_SERVER_URL = "https://your-modal-app-url.modal.run"
 SEED_OPTIONS = [
     "text_seeds/george_washington.csv",
     "text_seeds/thomas_jefferson.csv",
@@ -15,42 +12,46 @@ SEED_OPTIONS = [
 
 
 @st.cache_resource
-def load_model() -> SimpleTranslate:
-    model = SimpleTranslate(**model_configs)
-    model.load_state_dict(torch.load(FILENAME_MODEL_WEIGHTS, weights_only=True))
-    return model
-
-
-@st.cache_resource
 def fetch_seed_text(filename: str) -> pd.Series:
     return pd.read_csv(filename)["sentences"]
 
 
 def translate(
-    text_source,
-    model,
-    tokenizer,
+    text_source: str,
     temperature: float,
     beams: int,
-) -> torch.tensor:
-    """Generate translation for a single input example. Batches not handled."""
-    tokens_source = tokenizer(
-        text_source,
-        truncation=True,
-        max_length=model.max_sequence_length,
-        return_attention_mask=False,
-        return_token_type_ids=False,
-        return_tensors="pt",
-    )["input_ids"]
-    if temperature is not None:
-        temperature = max(1e-3, temperature)  # temperature must be positive
-        tokens_destination = model.generate_with_temp(
-            tokens_source, temperature=temperature
+) -> str:
+    """
+    Generate translation by calling the Modal inference server.
+
+    Args:
+        text_source: The English text to translate
+        temperature: Temperature for sampling (if using temperature-based generation)
+        beams: Number of beams for beam search (if using beam search)
+
+    Returns:
+        The translated French text
+    """
+    # Prepare request payload
+    payload = {
+        "text_source": text_source,
+        "temperature": temperature,
+        "beams": beams,
+    }
+
+    # Call Modal server
+    try:
+        response = httpx.post(
+            f"{MODAL_SERVER_URL}/translate",
+            json=payload,
+            timeout=30.0,
         )
-    if beams is not None:
-        tokens_destination = model.generate_with_beams(tokens_source, beam_width=beams)
-    translation = tokenizer.decode(tokens_destination[0], skip_special_tokens=True)
-    return translation
+        response.raise_for_status()
+        result = response.json()
+        return result["translation"]
+    except httpx.HTTPError as e:
+        st.error(f"Error calling translation server: {e}")
+        return ""
 
 
 what_is_this_app = """
@@ -64,7 +65,6 @@ It was trained for roughly 20 hours on an Nvidia L4 GPU on a Google Compute Engi
 Source code 👉 [GitHub](https://github.com/justinpyron/simple-translate)
 """
 st.set_page_config(page_title="Simple Translate", layout="centered", page_icon="🌎")
-model = load_model()
 if "text_input" not in st.session_state:
     st.session_state["text_input"] = None
 if "text_output" not in st.session_state:
@@ -140,8 +140,6 @@ with col2:
     st.write("#####")
     text_output = st.empty()  # Empty in order to define it before the button
 if st.button("Translate", type="primary", use_container_width=True):
-    translation = translate(
-        st.session_state["text_input"], model, tokenizer, temperature, beams
-    )
+    translation = translate(st.session_state["text_input"], temperature, beams)
     st.session_state["text_output"] = translation
 text_output.markdown("\n\n" + st.session_state["text_output"])
