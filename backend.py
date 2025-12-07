@@ -1,13 +1,6 @@
 """Modal-based inference server for SimpleTranslate model."""
 
 import modal
-import torch
-from fastapi import FastAPI
-from transformers import PreTrainedTokenizerFast
-
-from interfaces import TranslateRequest, TranslateResponse
-from model_configs import model_configs
-from simple_translate import SimpleTranslate
 
 app = modal.App("simple-translate")
 image = (
@@ -17,10 +10,11 @@ image = (
         "transformers==4.46.3",
         "numpy==2.1.3",
         "pydantic==2.10.4",
+        "fastapi==0.124.0",
     )
-    .add_local_python_source("interfaces.py")
-    .add_local_python_source("model_configs.py")
-    .add_local_python_source("simple_translate.py")
+    .add_local_file("interfaces.py", remote_path="/root/interfaces.py")
+    .add_local_file("model_configs.py", remote_path="/root/model_configs.py")
+    .add_local_file("simple_translate.py", remote_path="/root/simple_translate.py")
 )
 volume = modal.Volume.from_name("simple-translate")
 
@@ -36,6 +30,12 @@ class SimpleTranslateServer:
     @modal.enter()
     def load_model(self):
         """Load model and tokenizer on container startup."""
+        import torch
+        from transformers import PreTrainedTokenizerFast
+
+        from model_configs import model_configs
+        from simple_translate import SimpleTranslate
+
         # Load tokenizer from volume
         self.tokenizer = PreTrainedTokenizerFast.from_pretrained(
             "/data/tokenizer_1000/"
@@ -102,6 +102,10 @@ class SimpleTranslateServer:
     @modal.asgi_app()
     def fastapi_server(self):
         """Create and configure the FastAPI application."""
+        from fastapi import FastAPI
+
+        from interfaces import TranslateRequest, TranslateResponse
+
         server = FastAPI(title="SimpleTranslate API")
 
         @server.post("/translate", response_model=TranslateResponse)
