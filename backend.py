@@ -1,7 +1,5 @@
 """Modal-based inference server for SimpleTranslate model."""
 
-from typing import Optional
-
 import modal
 import torch
 from fastapi import FastAPI
@@ -68,8 +66,8 @@ class SimpleTranslateServer:
     def translate(
         self,
         text_source: str,
-        temperature: Optional[float] = None,
-        beams: Optional[int] = None,
+        temperature: float | None = None,
+        beams: int | None = None,
     ) -> str:
         """
         Generate translation for a single input example.
