@@ -3,7 +3,6 @@ import streamlit as st
 
 from interfaces import TranslateRequest, TranslateResponse
 
-# TODO: Update with proper URL
 SERVER_URL = (
     "https://justinpyron--simple-translate-simpletranslateserver--3465d9-dev.modal.run"
 )
