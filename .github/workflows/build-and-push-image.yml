@@ -8,7 +8,6 @@ env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY }}
   IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-  SERVER_URL: ${{ vars.SERVER_URL }}
 
 jobs:
   build-and-push-frontend:
