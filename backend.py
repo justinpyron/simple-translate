@@ -26,7 +26,7 @@ volume = modal.Volume.from_name("simple-translate")
     allow_concurrent_inputs=10,
     container_idle_timeout=600,
 )
-class SimpleTranslateServer:
+class Server:
     """Modal class for serving SimpleTranslate model inference."""
 
     @modal.enter()
