@@ -1,11 +1,11 @@
+import os
+
 import httpx
 import streamlit as st
 
 from interfaces import TranslateRequest, TranslateResponse
 
-SERVER_URL = (
-    "https://justinpyron--simple-translate-simpletranslateserver--3465d9-dev.modal.run"
-)
+SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"
 
 
