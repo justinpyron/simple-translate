@@ -1,0 +1,48 @@
+# Model weights
+*.pt
+
+# Datasets
+*.csv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Git
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+README.md
+*.md
+
+# Dependencies
+poetry.lock
+pyproject.toml
+
+# Docker
+Dockerfile
+.dockerignore

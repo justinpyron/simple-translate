@@ -1,14 +1,23 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
+
 WORKDIR /app
-COPY pyproject.toml \
-    poetry.lock \
-    simple_translate.py \
-    model_configs.py \
-    model_for_app_cpu.pt \
-    flask_app.py \
-    /app/
-COPY tokenizer_1000 /app/tokenizer_1000
-RUN pip install poetry
-RUN poetry install
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+# NOTE: requirements.txt is generated during the CI/CD workflow.
+# This keeps dependencies in sync without manual duplication.
+# See .github/workflows/build-and-push-image.yml.
+
+# Copy only the necessary application files
+COPY app.py interfaces.py ./
+
+# Expose port 8080 for Cloud Run
 EXPOSE 8080
-ENTRYPOINT ["poetry", "run", "python", "flask_app.py"]
+
+# Run Streamlit with Cloud Run-compatible settings
+CMD ["streamlit", "run", "app.py", \
+     "--server.port=8080", \
+     "--server.address=0.0.0.0", \
+     "--server.headless=true", \
+     "--browser.gatherUsageStats=false"]
