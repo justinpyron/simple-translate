@@ -23,8 +23,7 @@ volume = modal.Volume.from_name("simple-translate")
     image=image,
     volumes={"/data": volume},
     cpu=1,
-    allow_concurrent_inputs=10,
-    container_idle_timeout=600,
+    scaledown_window=600,
 )
 class Server:
     """Modal class for serving SimpleTranslate model inference."""
