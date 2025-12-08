@@ -3,8 +3,6 @@ name: Build and Push Docker Image
 on:
   workflow_dispatch:
   push:
-    branches:
-      - new-architecture  # Temporary: Remove this before merging to main
 
 env:
   GAR_LOCATION: ${{ vars.GAR_LOCATION }}
