@@ -86,5 +86,6 @@ jobs:
             --min-instances=0
             --max-instances=2
             --allow-unauthenticated
+            --description="Deployed from GitHub Actions - ${{ github.sha }}"
           env_vars: |
             SERVER_URL=${{ env.SERVER_URL }}
