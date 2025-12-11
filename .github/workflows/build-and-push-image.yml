@@ -12,7 +12,7 @@ env:
   SERVER_URL: ${{ vars.SERVER_URL }}
 
 jobs:
-  build-and-push-frontend:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
