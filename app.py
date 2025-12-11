@@ -46,7 +46,7 @@ def translate(
 
 
 what_is_this_app = """
-This app demos a neural machine translation model that was trained from scratch.
+This app demos a neural machine translation model that was built and trained from scratch.
 
 It uses an [encoder-decoder transformer architecture](https://github.com/justinpyron/simple-translate/blob/main/simple_translate.py) inspired by _[Attention Is All You Need](https://arxiv.org/abs/1706.03762)_.
 
