@@ -42,21 +42,30 @@ jobs:
           echo "Generated requirements.txt:"
           cat requirements.txt
 
-      # Step 5: Authenticate to Google Cloud
+      # Step 5: Deploy Modal app
+      - name: Deploy to Modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          pip install modal
+          modal deploy backend.py
+
+      # Step 6: Authenticate to Google Cloud
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # Step 6: Set up Cloud SDK
+      # Step 7: Set up Cloud SDK
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # Step 7: Configure Docker to use Artifact Registry
+      # Step 8: Configure Docker to use Artifact Registry
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
 
-      # Step 8: Generate Docker image tags (outputs full image references, not just tag names)
+      # Step 9: Generate Docker image tags (outputs full image references, not just tag names)
       # Example output: us-central1-docker.pkg.dev/PROJECT/REPO/IMAGE:TAG
       # Creates 3 tags:
       #   1. Commit SHA (e.g., main-abc123) - for pinning to specific commits
@@ -72,7 +81,7 @@ jobs:
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Step 9: Build and push Docker image to Artifact Registry
+      # Step 10: Build and push Docker image to Artifact Registry
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -81,7 +90,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      # Step 10: Deploy to Cloud Run
+      # Step 11: Deploy to Cloud Run
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
