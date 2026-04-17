@@ -261,27 +261,27 @@ class SimpleTranslate(nn.Module):
         x_decoder = self.layernorm_decoder(x_decoder)
         return x_decoder
 
-    # TODO: Add an arg for x_encoder. To avoid recomputing it unnecessarily during generation. If none, do as you already do.
     # TODO: Update to replace pad tokens with -100 to use loss functions' ignoring of pad tokens for free
     def forward(
         self,
         tokens_source: torch.Tensor,
         tokens_destination: torch.Tensor,
         targets: torch.Tensor = None,
+        x_encoder: torch.Tensor = None,
     ) -> torch.Tensor | float:
 
-        # Step 1: Attention masks
+        # Step 1: Encoder
         pad_mask_source = (tokens_source != self.token_id_pad).int()
-        pad_mask_destination = (tokens_destination != self.token_id_pad).float()
-        attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
-            -1, tokens_source.shape[-1], -1
-        )
+        if x_encoder is None:
+            attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
+                -1, tokens_source.shape[-1], -1
+            )
+            x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
+
+        # Step 2: Decoder
         attention_mask_decoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_destination.shape[-1], -1
         )
-
-        # Step 2: Forward pass
-        x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
         x_decoder = self.forward_decoder(
             tokens_destination, attention_mask_decoder, x_encoder
         )
@@ -291,6 +291,7 @@ class SimpleTranslate(nn.Module):
         if targets is None:
             return logits
         else:
+            pad_mask_destination = (tokens_destination != self.token_id_pad).float()
             batch_size, n_tokens, n_classes = logits.shape
             logits_flat = logits.view(batch_size * n_tokens, n_classes)
             targets_flat = targets.flatten()
