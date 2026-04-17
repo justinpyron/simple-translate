@@ -44,7 +44,7 @@ class Trainer:
         self.best_loss = torch.inf
         self.loss_log_train: list[tuple[int, float]] = []
         self.loss_log_eval: list[tuple[int, float]] = []
-        self.birthday = datetime.now().strftime("%Y-%m-%dT%H_%M")
+        self.birthday = datetime.now().strftime("%Y%m%d_%H%M")
         # TODO: Make save_dir have a default given by a global variable
         # TODO: Possible remove birthday and other unnecessary attributes if WandB logging gives you equivalents for free
         # TODO: Don't make device an arg; instead, set it to "cuda" if CUDA is available, otherwise "cpu"
