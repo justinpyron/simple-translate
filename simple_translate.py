@@ -252,7 +252,6 @@ class SimpleTranslate(nn.Module):
         x_encoder = self.layernorm_encoder(x_encoder)
         return x_encoder
 
-    # TODO: Make a distinct token embedding table for encoder and decoder?
     def forward_decoder(
         self,
         tokens_destination: torch.Tensor,
