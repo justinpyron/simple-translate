@@ -49,6 +49,10 @@ class Trainer:
     # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
     def _stream_train_batches(self) -> Iterator[pd.DataFrame]:
         """Yield training batches indefinitely, restarting the CSV when exhausted."""
+        # `pd.read_csv(..., chunksize=...)` returns a one-shot iterator that is
+        # spent once the file is fully read. Wrapping it in `while True` reopens
+        # the file for another pass, so this generator never terminates on its
+        # own — the caller is responsible for stopping (e.g. via `break`).
         while True:
             reader = pd.read_csv(
                 self.dataset_filename_train,
