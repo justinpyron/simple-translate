@@ -9,12 +9,9 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from transformers import PreTrainedTokenizerFast
 
 from simple_translate import SimpleTranslate
-
-# TODO: Remove unused imports
 
 logger = logging.getLogger(__name__)
 
