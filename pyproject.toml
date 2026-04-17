@@ -13,6 +13,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "fastapi>=0.136.0",
+    "ipykernel>=7.2.0",
     "modal>=1.4.2",
     "numpy>=2.4.4",
     "pandas>=3.0.2",
