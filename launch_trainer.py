@@ -29,6 +29,10 @@ simple_translate_trainer = Trainer(
 
 
 if __name__ == "__main__":
-    simple_translate_trainer.launch_session(train_epochs=1)
+    simple_translate_trainer.launch_session(
+        num_examples=1_000_000,
+        log_every=10_000,
+        eval_every=100_000,
+    )
 
 # TODO: Write a shell script that launches a training session
