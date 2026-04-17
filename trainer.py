@@ -4,7 +4,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Literal
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,9 @@ WANDB_ENTITY = "PLACEHOLDER_ENTITY"  # TODO: replace with real entity
 WANDB_PROJECT = "PLACEHOLDER_PROJECT"  # TODO: replace with real project
 DEFAULT_SAVE_DIR = Path("PLACEHOLDER_SAVE_DIR")  # TODO: replace with real default
 
+COL_EN = "en"
+COL_FR = "fr"
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +34,7 @@ class Trainer:
         dataset_filename_val: str,
         batch_size: int,
         lr: float,
+        direction: Literal["en2fr", "fr2en"] = "en2fr",
         save_dir: str | Path | None = None,
         device: str | None = None,
     ) -> None:
@@ -48,13 +52,15 @@ class Trainer:
         self.dataset_filename_val = dataset_filename_val
         self.batch_size = batch_size
         self.lr = lr
+        self.direction = direction
+        self.source_column = COL_EN if direction == "en2fr" else COL_FR
+        self.target_column = COL_FR if direction == "en2fr" else COL_EN
         self.optimizer = AdamW(self.model.parameters(), lr=lr)
         self.save_dir = Path(save_dir) if save_dir is not None else DEFAULT_SAVE_DIR
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.examples_trained_on = 0
         self.best_loss = torch.inf
 
-    # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
     def _stream_train_batches(self) -> Iterator[pd.DataFrame]:
         """Yield training batches indefinitely, restarting the CSV when exhausted."""
         # `pd.read_csv(..., chunksize=...)` returns a one-shot iterator that is
@@ -149,8 +155,8 @@ class Trainer:
         for text_batch in reader:
             text_batch = text_batch.dropna(axis=0, how="any")
             tokens_source, tokens_destination = self.tokenize_batch(
-                text_batch["en"].tolist(),
-                text_batch["fr"].tolist(),
+                text_batch[self.source_column].tolist(),
+                text_batch[self.target_column].tolist(),
             )
             loss = self.evaluate_one_batch(tokens_source, tokens_destination)
             losses.append(loss)
@@ -178,7 +184,7 @@ class Trainer:
           (relies on the law of large numbers to approximate full-set loss).
           Defaults to `None`, meaning the full validation set is used.
         """
-        run_name = f"model_{datetime.now().strftime('%Y%m%d_%H%M')}"
+        run_name = f"model_{self.direction}_{datetime.now().strftime('%Y%m%d_%H%M')}"
         wandb.init(
             entity=WANDB_ENTITY,
             project=WANDB_PROJECT,
@@ -186,6 +192,7 @@ class Trainer:
             config={
                 "batch_size": self.batch_size,
                 "lr": self.lr,
+                "direction": self.direction,
                 "num_examples": num_examples,
                 "log_every": log_every,
                 "eval_every": eval_every,
@@ -203,8 +210,8 @@ class Trainer:
         try:
             for text_batch in self._stream_train_batches():
                 tokens_source, tokens_destination = self.tokenize_batch(
-                    text_batch["en"].tolist(),
-                    text_batch["fr"].tolist(),
+                    text_batch[self.source_column].tolist(),
+                    text_batch[self.target_column].tolist(),
                 )
                 batch_loss = self.train_one_batch(tokens_source, tokens_destination)
                 recent_losses.append(batch_loss)
