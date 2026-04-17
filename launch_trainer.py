@@ -1,9 +1,11 @@
-from simple_translate import SimpleTranslate
-from model_configs import tokenizer, tokenizer_mini, model_configs, model_configs_mini
-from trainer import Trainer
-from datetime import datetime
 import logging
+from datetime import datetime
+
 import torch
+
+from model_configs import model_configs, model_configs_mini, tokenizer, tokenizer_mini
+from simple_translate import SimpleTranslate
+from trainer import Trainer
 
 logging.basicConfig(
     filename=f"train_{datetime.now().strftime('%Y-%m-%dT%H_%M')}.log",
@@ -28,3 +30,5 @@ simple_translate_trainer = Trainer(
 
 if __name__ == "__main__":
     simple_translate_trainer.launch_session(train_epochs=1)
+
+# TODO: Write a shell script that launches a training session
