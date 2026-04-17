@@ -325,18 +325,21 @@ class SimpleTranslate(nn.Module):
 
         self.eval()
 
+        tokens_source = tokens_source[:, -self.max_sequence_length :]
+
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
 
-        tokens_source = tokens_source[:, -self.max_sequence_length :]
-
         with torch.no_grad():
+
+            # Compute encoder output
             pad_mask_source = (tokens_source != self.token_id_pad).int()
             attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
                 -1, tokens_source.shape[-1], -1
             )
             x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
 
+            # Generate decoder tokens
             for i in range(max_new_tokens):
                 logits = self.forward(
                     tokens_source,
@@ -365,19 +368,34 @@ class SimpleTranslate(nn.Module):
         Input tokens are expected to be in a batch of size 1.
         Returns tokens in a batch of size 1.
         """
+
         self.eval()
+
+        tokens_source = tokens_source[:, -self.max_sequence_length :]
+
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
+
         Beam = namedtuple("Beam", ["tokens", "log_probability", "is_finished"])
         finished_beams = list()
+
         with torch.no_grad():
+
+            # Compute encoder output
+            pad_mask_source = (tokens_source != self.token_id_pad).int()
+            attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
+                -1, tokens_source.shape[-1], -1
+            )
+            x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
+
             beams = [Beam(tokens_destination, 0, False)]
             for i in range(max_new_tokens):
                 candidates = list()
                 for beam in beams:
                     logits = self.forward(
-                        tokens_source[:, -self.max_sequence_length :],
+                        tokens_source,
                         beam.tokens[:, -self.max_sequence_length :],
+                        x_encoder=x_encoder,
                     )[0, -1, :]
                     probability = F.softmax(logits, dim=-1)
                     candidate_tokens = probability.argsort(descending=True)[:beam_width]
@@ -397,5 +415,7 @@ class SimpleTranslate(nn.Module):
                 finished_beams += [beam for beam in candidates if beam.is_finished]
                 if len(finished_beams) >= beam_width:
                     break
+
         finished_beams.sort(key=lambda x: x.log_probability, reverse=True)
+
         return finished_beams[0].tokens
