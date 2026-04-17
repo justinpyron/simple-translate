@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from datetime import datetime
@@ -11,8 +12,8 @@ from transformers import PreTrainedTokenizerFast
 
 from simple_translate import SimpleTranslate
 
-import logging
 logger = logging.getLogger(__name__)
+
 
 class Trainer:
     def __init__(
@@ -97,6 +98,8 @@ class Trainer:
             )
             return loss.cpu()
 
+    # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
+    # TODO: Iterate through the dataset in chunks of size self.batch_size --> Wait, I think you already do this.
     def train_one_epoch(
         self,
         verbose: bool = False,
@@ -166,8 +169,16 @@ class Trainer:
                     )
                 )
 
+    # TODO: Add checkpointing.
+    # TODO: Don't make num_epochs an arg; instead, make number of examples to train on an arg. Cycle through the dataset until you've trained on the number of examples you want.
+    # TODO: Add eval_every arg that will save if loss improves + print stats/metrics.
+    # TODO: log results to WandB? Ideally, we could print GPU memory usage, etc. as well
+
     def save(self) -> None:
         torch.save(
             self.model.state_dict(),
             os.path.join(self.save_dir, f"model_{self.birthday}.pt"),
         )
+
+
+# TODO: Write a shell script that launches a training session

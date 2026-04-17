@@ -239,6 +239,8 @@ class SimpleTranslate(nn.Module):
         x_decoder = self.layernorm_decoder(x_decoder)
         return x_decoder
 
+    # TODO: Add an arg for x_encoder. To avoid recomputing it unnecessarily during generation. If none, do as you already do.
+    # TODO: Update to replace pad tokens with -100 to use loss functions' ignoring of pad tokens for free
     def forward(
         self,
         tokens_source: torch.Tensor,
@@ -275,6 +277,7 @@ class SimpleTranslate(nn.Module):
             ).mean()  # Ignore padding tokens inside loss function
             return loss
 
+    # TODO: Update to stream tokens rather than dumping fully completed batches?
     def generate_with_temp(
         self,
         tokens_source: torch.Tensor,
