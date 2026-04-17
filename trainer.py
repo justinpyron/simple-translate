@@ -49,6 +49,18 @@ class Trainer:
         # TODO: Possible remove birthday and other unnecessary attributes if WandB logging gives you equivalents for free
         # TODO: Don't make device an arg; instead, set it to "cuda" if CUDA is available, otherwise "cpu"
 
+    # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
+    def _stream_train_batches(self) -> Iterator[pd.DataFrame]:
+        """Yield training batches indefinitely, restarting the CSV when exhausted."""
+        while True:
+            reader = pd.read_csv(
+                self.dataset_filename_train,
+                header=0,
+                chunksize=self.batch_size,
+            )
+            for text_batch in reader:
+                yield text_batch.dropna(axis=0, how="any")
+
     def tokenize_batch(
         self,
         text_source: list[str],
@@ -80,6 +92,7 @@ class Trainer:
         tokens_source: list[str],
         tokens_destination: list[str],
     ) -> float:
+        self.model.train()
         tokens_source = tokens_source.to(self.device)
         tokens_destination = tokens_destination.to(self.device)
         loss = self.model(
@@ -107,18 +120,6 @@ class Trainer:
                 targets=tokens_destination[:, 1:],
             )
             return loss.item()
-
-    # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
-    def _stream_train_batches(self) -> Iterator[pd.DataFrame]:
-        """Yield training batches indefinitely, restarting the CSV when exhausted."""
-        while True:
-            reader = pd.read_csv(
-                self.dataset_filename_train,
-                header=0,
-                chunksize=self.batch_size,
-            )
-            for text_batch in reader:
-                yield text_batch.dropna(axis=0, how="any")
 
     def evaluate(self) -> float:
         """Run a full pass over the validation set and return mean loss."""
@@ -158,7 +159,6 @@ class Trainer:
         recent_losses: deque[float] = deque()
         next_log_at = self.examples_trained_on + log_every
         next_eval_at = self.examples_trained_on + eval_every
-        stop_at = self.examples_trained_on + num_examples
         start = time.time()
 
         for text_batch in self._stream_train_batches():
@@ -195,7 +195,7 @@ class Trainer:
                     )
                 next_eval_at += eval_every
 
-            if self.examples_trained_on >= stop_at:
+            if self.examples_trained_on >= num_examples:
                 break
 
     # TODO: log results to WandB? Ideally, we could print GPU memory usage, etc. as well
