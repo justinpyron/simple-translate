@@ -36,7 +36,7 @@ class AttentionHead(nn.Module):
         # Modify scores based on masking (autoregressive or padding)
         if attention_mask is not None:
             if attention_mask == "autoregressive":
-                attention_mask = torch.tril(scores)
+                attention_mask = torch.ones_like(scores).tril()
             scores = scores.masked_fill(attention_mask == 0, float("-inf"))
 
         # Compute attention weights
