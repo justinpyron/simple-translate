@@ -1,5 +1,4 @@
 from collections import namedtuple
-from typing import Union
 
 import numpy as np
 import torch
@@ -24,7 +23,7 @@ class AttentionHead(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        attention_mask: Union[str, torch.Tensor] = None,
+        attention_mask: str | torch.Tensor = None,
         cross_x: torch.Tensor = None,
     ) -> torch.Tensor:
 
@@ -269,7 +268,7 @@ class SimpleTranslate(nn.Module):
         tokens_source: torch.Tensor,
         tokens_destination: torch.Tensor,
         targets: torch.Tensor = None,
-    ) -> Union[torch.Tensor, float]:
+    ) -> torch.Tensor | float:
 
         # Step 1: Attention masks
         pad_mask_source = (tokens_source != self.token_id_pad).int()
