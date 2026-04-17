@@ -328,11 +328,20 @@ class SimpleTranslate(nn.Module):
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
 
+        tokens_source = tokens_source[:, -self.max_sequence_length :]
+
         with torch.no_grad():
+            pad_mask_source = (tokens_source != self.token_id_pad).int()
+            attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
+                -1, tokens_source.shape[-1], -1
+            )
+            x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
+
             for i in range(max_new_tokens):
                 logits = self.forward(
-                    tokens_source[:, -self.max_sequence_length :],
+                    tokens_source,
                     tokens_destination[:, -self.max_sequence_length :],
+                    x_encoder=x_encoder,
                 )
                 logits_final_token = logits[:, -1, :]
                 probability = F.softmax(logits_final_token / temperature, dim=-1)
