@@ -8,10 +8,14 @@ from typing import Iterator
 import numpy as np
 import pandas as pd
 import torch
+import wandb
 from torch.optim import AdamW
 from transformers import PreTrainedTokenizerFast
 
 from simple_translate import SimpleTranslate
+
+WANDB_ENTITY = "PLACEHOLDER_ENTITY"  # TODO: replace with real entity
+WANDB_PROJECT = "PLACEHOLDER_PROJECT"  # TODO: replace with real project
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +32,11 @@ class Trainer:
         lr: float,
         save_dir: str,
     ) -> None:
+        if not os.environ.get("WANDB_API_KEY"):
+            raise RuntimeError(
+                "WANDB_API_KEY is not set. "
+                "Run `wandb login` or export WANDB_API_KEY before instantiating Trainer."
+            )
         self.device = device
         self.model = model.to(device)
         self.tokenizer = tokenizer
@@ -39,11 +48,7 @@ class Trainer:
         os.makedirs(self.save_dir, exist_ok=True)
         self.examples_trained_on = 0
         self.best_loss = torch.inf
-        self.loss_log_train: list[tuple[int, float]] = []
-        self.loss_log_eval: list[tuple[int, float]] = []
-        self.birthday = datetime.now().strftime("%Y%m%d_%H%M")
         # TODO: Make save_dir have a default given by a global variable
-        # TODO: Possible remove birthday and other unnecessary attributes if WandB logging gives you equivalents for free
         # TODO: Don't make device an arg; instead, set it to "cuda" if CUDA is available, otherwise "cpu"
 
     # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
@@ -148,61 +153,79 @@ class Trainer:
         log_every: int,
         eval_every: int,
         save_best: bool = True,
-        verbose: bool = True,
     ) -> None:
         """
-        Train for roughly `num_examples` examples.
+        Train until `self.examples_trained_on >= num_examples`.
 
-        - `log_every`: record running-mean training loss every this many examples.
-        - `eval_every`: run a full evaluation pass every this many examples.
+        - `log_every`: log running-mean training loss to W&B every this many examples.
+        - `eval_every`: run a full evaluation pass and log eval loss to W&B every
+          this many examples.
         """
+        run_name = f"model_{datetime.now().strftime('%Y%m%d_%H%M')}"
+        wandb.init(
+            entity=WANDB_ENTITY,
+            project=WANDB_PROJECT,
+            name=run_name,
+            config={
+                "batch_size": self.batch_size,
+                "lr": self.optimizer.param_groups[0]["lr"],
+                "num_examples": num_examples,
+                "log_every": log_every,
+                "eval_every": eval_every,
+            },
+        )
+        logger.info(f"Starting session {run_name} (target: {num_examples} examples)")
+
         self.model.train()
         recent_losses: deque[float] = deque()
         next_log_at = self.examples_trained_on + log_every
         next_eval_at = self.examples_trained_on + eval_every
         start = time.time()
 
-        for text_batch in self._stream_train_batches():
-            tokens_source, tokens_destination = self.tokenize_batch(
-                text_batch["en"].tolist(),
-                text_batch["fr"].tolist(),
+        try:
+            for text_batch in self._stream_train_batches():
+                tokens_source, tokens_destination = self.tokenize_batch(
+                    text_batch["en"].tolist(),
+                    text_batch["fr"].tolist(),
+                )
+                batch_loss = self.train_one_batch(tokens_source, tokens_destination)
+                recent_losses.append(batch_loss)
+
+                if self.examples_trained_on >= next_log_at:
+                    avg = sum(recent_losses) / len(recent_losses)
+                    recent_losses.clear()
+                    wandb.log({"train/loss": avg}, step=self.examples_trained_on)
+                    next_log_at += log_every
+
+                if self.examples_trained_on >= next_eval_at:
+                    eval_loss = self.evaluate()
+                    wandb.log({"eval/loss": eval_loss}, step=self.examples_trained_on)
+                    if eval_loss < self.best_loss:
+                        self.best_loss = eval_loss
+                        wandb.log(
+                            {"eval/best_loss": self.best_loss},
+                            step=self.examples_trained_on,
+                        )
+                        if save_best:
+                            self.save(run_name)
+                            logger.info(
+                                f"Saved best model at {self.examples_trained_on} "
+                                f"examples (eval loss {eval_loss:.3f})"
+                            )
+                    next_eval_at += eval_every
+
+                if self.examples_trained_on >= num_examples:
+                    break
+        finally:
+            elapsed_min = (time.time() - start) / 60
+            logger.info(
+                f"Finished session {run_name} "
+                f"(elapsed {elapsed_min:.1f} min, best eval loss {self.best_loss:.3f})"
             )
-            batch_loss = self.train_one_batch(tokens_source, tokens_destination)
-            recent_losses.append(batch_loss)
+            wandb.finish()
 
-            if self.examples_trained_on >= next_log_at:
-                avg = sum(recent_losses) / len(recent_losses)
-                self.loss_log_train.append((self.examples_trained_on, avg))
-                recent_losses.clear()
-                if verbose:
-                    logger.info(
-                        f"[train] ex={self.examples_trained_on:>10} " f"loss={avg:6.3f}"
-                    )
-                next_log_at += log_every
-
-            if self.examples_trained_on >= next_eval_at:
-                eval_loss = self.evaluate()
-                self.loss_log_eval.append((self.examples_trained_on, eval_loss))
-                if eval_loss < self.best_loss:
-                    self.best_loss = eval_loss
-                    if save_best:
-                        self.save()
-                if verbose:
-                    elapsed_min = (time.time() - start) / 60
-                    logger.info(
-                        f"[eval ] ex={self.examples_trained_on:>10} "
-                        f"loss={eval_loss:6.3f} best={self.best_loss:6.3f} "
-                        f"elapsed={elapsed_min:5.1f}min"
-                    )
-                next_eval_at += eval_every
-
-            if self.examples_trained_on >= num_examples:
-                break
-
-    # TODO: log results to WandB? Ideally, we could print GPU memory usage, etc. as well
-
-    def save(self) -> None:
+    def save(self, run_name: str) -> None:
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.save_dir, f"model_{self.birthday}.pt"),
+            os.path.join(self.save_dir, f"{run_name}.pt"),
         )
