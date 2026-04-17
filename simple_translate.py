@@ -261,7 +261,6 @@ class SimpleTranslate(nn.Module):
         x_decoder = self.layernorm_decoder(x_decoder)
         return x_decoder
 
-    # TODO: Update to replace pad tokens with -100 to use loss functions' ignoring of pad tokens for free
     def forward(
         self,
         tokens_source: torch.Tensor,
@@ -291,16 +290,11 @@ class SimpleTranslate(nn.Module):
         if targets is None:
             return logits
         else:
-            pad_mask_destination = (tokens_destination != self.token_id_pad).float()
-            batch_size, n_tokens, n_classes = logits.shape
-            logits_flat = logits.view(batch_size * n_tokens, n_classes)
-            targets_flat = targets.flatten()
-            loss_unreduced = F.cross_entropy(
-                logits_flat, targets_flat, reduction="none"
+            loss = F.cross_entropy(
+                logits.view(-1, logits.size(-1)),
+                targets.view(-1),
+                ignore_index=self.token_id_pad,
             )
-            loss = (
-                loss_unreduced * pad_mask_destination.flatten()
-            ).mean()  # Ignore padding tokens inside loss function
             return loss
 
     # TODO: Update to stream tokens rather than dumping fully completed batches?
