@@ -1,32 +1,24 @@
-[tool.poetry]
+[project]
 name = "simple-translate"
 version = "0.1.0"
-description = ""
-authors = ["Justin Pyron <justinpyron@gmail.com>"]
+description = "Add your description here"
 readme = "README.md"
-package-mode = false
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.13.2",
+    "streamlit>=1.56.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.14"
-streamlit = "^1.40.1"
-httpx = "^0.28.1"
-pydantic = "^2.12.5"
-
-[tool.poetry.group.dev.dependencies]
-numpy = "^2.1.3"
-pandas = "^2.2.3"
-torch = "^2.5.1"
-jupyterlab = "^4.3.1"
-ipykernel = "^6.29.5"
-tokenizers = "^0.20.3"
-click = "^8.1.7"
-seaborn = "^0.13.2"
-pre-commit = "^4.0.1"
-transformers = "^4.46.3"
-flask = "^3.1.0"
-modal = "^1.2.4"
-fastapi = "^0.124.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "fastapi>=0.136.0",
+    "ipykernel>=7.2.0",
+    "modal>=1.4.2",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "pre-commit>=4.5.1",
+    "tokenizers>=0.22.2",
+    "torch>=2.11.0",
+    "transformers>=5.5.4",
+]
