@@ -200,7 +200,12 @@ class SimpleTranslate(nn.Module):
 
         # Modules
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
-        self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
+        self.position_embedder_encoder = nn.Embedding(
+            max_sequence_length, dim_embedding
+        )
+        self.position_embedder_decoder = nn.Embedding(
+            max_sequence_length, dim_embedding
+        )
         self.encoder = nn.ModuleList(
             [
                 EncoderBlock(dim_embedding, dim_head, num_heads, dim_mlp, dropout)
@@ -238,14 +243,16 @@ class SimpleTranslate(nn.Module):
     ) -> torch.Tensor:
         n_tokens = tokens_source.shape[1]
         token_embedding = self.token_embedder(tokens_source)
-        position_embedding = self.position_embedder(self.position_idx[:n_tokens])
+        position_embedding = self.position_embedder_encoder(
+            self.position_idx[:n_tokens]
+        )
         x_encoder = token_embedding + position_embedding
         for encoder_block in self.encoder:
             x_encoder = encoder_block(x_encoder, attention_mask_encoder)
         x_encoder = self.layernorm_encoder(x_encoder)
         return x_encoder
 
-    # TODO: Make a distinct embedding table for encoder and decoder?
+    # TODO: Make a distinct token embedding table for encoder and decoder?
     def forward_decoder(
         self,
         tokens_destination: torch.Tensor,
@@ -254,7 +261,9 @@ class SimpleTranslate(nn.Module):
     ) -> torch.Tensor:
         n_tokens = tokens_destination.shape[1]
         token_embedding = self.token_embedder(tokens_destination)
-        position_embedding = self.position_embedder(self.position_idx[:n_tokens])
+        position_embedding = self.position_embedder_decoder(
+            self.position_idx[:n_tokens]
+        )
         x_decoder = token_embedding + position_embedding
         for decoder_block in self.decoder:
             x_decoder = decoder_block(x_decoder, attention_mask_decoder, x_encoder)
