@@ -3,6 +3,7 @@ import os
 import time
 from collections import deque
 from datetime import datetime
+from pathlib import Path
 from typing import Iterator
 
 import numpy as np
@@ -16,6 +17,7 @@ from simple_translate import SimpleTranslate
 
 WANDB_ENTITY = "PLACEHOLDER_ENTITY"  # TODO: replace with real entity
 WANDB_PROJECT = "PLACEHOLDER_PROJECT"  # TODO: replace with real project
+DEFAULT_SAVE_DIR = Path("PLACEHOLDER_SAVE_DIR")  # TODO: replace with real default
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class Trainer:
         dataset_filename_val: str,
         batch_size: int,
         lr: float,
-        save_dir: str,
+        save_dir: str | Path | None = None,
     ) -> None:
         if not os.environ.get("WANDB_API_KEY"):
             raise RuntimeError(
@@ -45,11 +47,10 @@ class Trainer:
         self.batch_size = batch_size
         self.lr = lr
         self.optimizer = AdamW(self.model.parameters(), lr=lr)
-        self.save_dir = os.path.join(os.getcwd(), save_dir)
-        os.makedirs(self.save_dir, exist_ok=True)
+        self.save_dir = Path(save_dir) if save_dir is not None else DEFAULT_SAVE_DIR
+        self.save_dir.mkdir(parents=True, exist_ok=True)
         self.examples_trained_on = 0
         self.best_loss = torch.inf
-        # TODO: Make save_dir have a default given by a global variable
         # TODO: Don't make device an arg; instead, set it to "cuda" if CUDA is available, otherwise "cpu"
 
     # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
@@ -228,5 +229,5 @@ class Trainer:
     def save(self, run_name: str) -> None:
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.save_dir, f"{run_name}.pt"),
+            self.save_dir / f"{run_name}.pt",
         )
