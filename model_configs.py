@@ -10,5 +10,5 @@ model_configs = {
     "num_blocks": 4,
     "token_id_bos": 0,
     "token_id_eos": 1,
-    "token_id_pad": 2,
+    "token_id_pad": 2,  # TODO: Make this -100 to comform to standard convention
 }
