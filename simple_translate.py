@@ -27,17 +27,28 @@ class AttentionHead(nn.Module):
         attention_mask: Union[str, torch.Tensor] = None,
         cross_x: torch.Tensor = None,
     ) -> torch.Tensor:
+
+        # Compute attention scores
         Q = self.query(x)
         K = self.key(x if cross_x is None else cross_x)
         V = self.value(x if cross_x is None else cross_x)
         scores = Q @ K.transpose(-2, -1) / self.dim_head**0.5
+
+        # Modify scores based on masking (autoregressive or padding)
         if attention_mask is not None:
             if attention_mask == "autoregressive":
                 attention_mask = torch.tril(scores)
             scores = scores.masked_fill(attention_mask == 0, float("-inf"))
+
+        # Compute attention weights
         attention_weights = F.softmax(scores, dim=-1)
+
+        # Apply dropout
         attention_weights = self.dropout(attention_weights)
+
+        # Compute final output
         out = attention_weights @ V
+
         return out
 
 
@@ -76,12 +87,14 @@ class EncoderBlock(nn.Module):
         dropout: float,
     ) -> None:
         super().__init__()
+
         # LAYER 1: Self-attention (with padding mask)
         self.layernorm_1 = nn.LayerNorm(dim_embedding)
         self.attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
+
         # LAYER 2: Feed-forward
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
@@ -111,18 +124,21 @@ class DecoderBlock(nn.Module):
         dropout: float,
     ) -> None:
         super().__init__()
+
         # LAYER 1: Self-attention (with autoregressive mask)
         self.layernorm_1 = nn.LayerNorm(dim_embedding)
         self.self_attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout1 = nn.Dropout(dropout)
+
         # LAYER 2: Cross-attention (with padding mask)
         self.layernorm_2 = nn.LayerNorm(dim_embedding)
         self.cross_attention = MultiHeadedAttention(
             dim_embedding, dim_head, num_heads, dropout
         )
         self.dropout2 = nn.Dropout(dropout)
+
         # LAYER 3: Feed-forward layer
         self.layernorm_3 = nn.LayerNorm(dim_embedding)
         self.mlp = nn.Sequential(
@@ -160,10 +176,12 @@ class SimpleTranslate(nn.Module):
         dropout: float,
         num_blocks: int,
         token_id_bos: int,
-        token_id_eos: int,  # TODO: review if this is necessary
+        token_id_eos: int,
         token_id_pad: int,
     ) -> None:
         super().__init__()
+
+        # Hyperparameters
         self.vocab_size = vocab_size
         self.max_sequence_length = max_sequence_length
         self.dim_embedding = dim_embedding
@@ -175,9 +193,13 @@ class SimpleTranslate(nn.Module):
         self.token_id_bos = token_id_bos
         self.token_id_eos = token_id_eos
         self.token_id_pad = token_id_pad
+
+        # Buffers
         self.register_buffer(
             "position_idx", torch.arange(max_sequence_length), persistent=False
         )
+
+        # Modules
         self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
         self.position_embedder = nn.Embedding(max_sequence_length, dim_embedding)
         self.encoder = nn.ModuleList(
@@ -224,6 +246,7 @@ class SimpleTranslate(nn.Module):
         x_encoder = self.layernorm_encoder(x_encoder)
         return x_encoder
 
+    # TODO: Make a distinct embedding table for encoder and decoder?
     def forward_decoder(
         self,
         tokens_destination: torch.Tensor,
@@ -247,7 +270,8 @@ class SimpleTranslate(nn.Module):
         tokens_destination: torch.Tensor,
         targets: torch.Tensor = None,
     ) -> Union[torch.Tensor, float]:
-        # STEP 1: Attention masks
+
+        # Step 1: Attention masks
         pad_mask_source = (tokens_source != self.token_id_pad).int()
         pad_mask_destination = (tokens_destination != self.token_id_pad).float()
         attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
@@ -256,13 +280,15 @@ class SimpleTranslate(nn.Module):
         attention_mask_decoder = pad_mask_source.unsqueeze(dim=1).expand(
             -1, tokens_destination.shape[-1], -1
         )
-        # STEP 2: Forward pass
+
+        # Step 2: Forward pass
         x_encoder = self.forward_encoder(tokens_source, attention_mask_encoder)
         x_decoder = self.forward_decoder(
             tokens_destination, attention_mask_decoder, x_encoder
         )
         logits = self.classification_head(x_decoder)
-        # STEP 3: Output
+
+        # Step 3: Output
         if targets is None:
             return logits
         else:
@@ -296,9 +322,12 @@ class SimpleTranslate(nn.Module):
         As temperature approaches 0, the probability of sampling
         the most likely next token approaches 1.
         """
+
         self.eval()
+
         if tokens_destination is None:
             tokens_destination = torch.tensor([[self.token_id_bos]])
+
         with torch.no_grad():
             for i in range(max_new_tokens):
                 logits = self.forward(
@@ -311,6 +340,7 @@ class SimpleTranslate(nn.Module):
                 tokens_destination = torch.cat((tokens_destination, next_token), dim=-1)
                 if next_token[0, 0] == self.token_id_eos:
                     break
+
         return tokens_destination
 
     def generate_with_beams(
