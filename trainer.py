@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 class Trainer:
     def __init__(
         self,
-        device: str,
         model: SimpleTranslate,
         tokenizer: PreTrainedTokenizerFast,
         dataset_filename_train: str,
@@ -33,12 +32,15 @@ class Trainer:
         batch_size: int,
         lr: float,
         save_dir: str | Path | None = None,
+        device: str | None = None,
     ) -> None:
         if not os.environ.get("WANDB_API_KEY"):
             raise RuntimeError(
                 "WANDB_API_KEY is not set. "
                 "Run `wandb login` or export WANDB_API_KEY before instantiating Trainer."
             )
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = device
         self.model = model.to(device)
         self.tokenizer = tokenizer
@@ -51,7 +53,6 @@ class Trainer:
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.examples_trained_on = 0
         self.best_loss = torch.inf
-        # TODO: Don't make device an arg; instead, set it to "cuda" if CUDA is available, otherwise "cpu"
 
     # TODO: Add boolean switch for choosing en_2_fr or fr_2_en
     def _stream_train_batches(self) -> Iterator[pd.DataFrame]:
