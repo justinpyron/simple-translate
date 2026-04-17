@@ -130,8 +130,14 @@ class Trainer:
             )
             return loss.item()
 
-    def evaluate(self) -> float:
-        """Run a full pass over the validation set and return mean loss."""
+    def evaluate(self, max_examples: int | None = None) -> float:
+        """
+        Run over the validation set and return mean loss.
+
+        If `max_examples` is provided, stop after seeing at least that many
+        examples (useful for a fast, LLN-based estimate on large val sets).
+        If `None`, evaluate on the full validation set.
+        """
         self.model.eval()
         reader = pd.read_csv(
             self.dataset_filename_val,
@@ -139,6 +145,7 @@ class Trainer:
             chunksize=self.batch_size,
         )
         losses = []
+        examples_seen = 0
         for text_batch in reader:
             text_batch = text_batch.dropna(axis=0, how="any")
             tokens_source, tokens_destination = self.tokenize_batch(
@@ -147,6 +154,9 @@ class Trainer:
             )
             loss = self.evaluate_one_batch(tokens_source, tokens_destination)
             losses.append(loss)
+            examples_seen += tokens_source.shape[0]
+            if max_examples is not None and examples_seen >= max_examples:
+                break
         self.model.train()
         return float(np.mean(losses))
 
@@ -155,14 +165,18 @@ class Trainer:
         num_examples: int,
         log_every: int,
         eval_every: int,
+        max_eval_examples: int | None = None,
         save_best: bool = True,
     ) -> None:
         """
         Train until `self.examples_trained_on >= num_examples`.
 
         - `log_every`: log running-mean training loss to W&B every this many examples.
-        - `eval_every`: run a full evaluation pass and log eval loss to W&B every
+        - `eval_every`: run an evaluation pass and log eval loss to W&B every
           this many examples.
+        - `max_eval_examples`: if set, cap each eval pass at this many examples
+          (relies on the law of large numbers to approximate full-set loss).
+          Defaults to `None`, meaning the full validation set is used.
         """
         run_name = f"model_{datetime.now().strftime('%Y%m%d_%H%M')}"
         wandb.init(
@@ -175,6 +189,7 @@ class Trainer:
                 "num_examples": num_examples,
                 "log_every": log_every,
                 "eval_every": eval_every,
+                "max_eval_examples": max_eval_examples,
             },
         )
         logger.info(f"Starting session {run_name} (target: {num_examples} examples)")
@@ -201,7 +216,7 @@ class Trainer:
                     next_log_at += log_every
 
                 if self.examples_trained_on >= next_eval_at:
-                    eval_loss = self.evaluate()
+                    eval_loss = self.evaluate(max_examples=max_eval_examples)
                     wandb.log({"eval/loss": eval_loss}, step=self.examples_trained_on)
                     if eval_loss < self.best_loss:
                         self.best_loss = eval_loss
