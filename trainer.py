@@ -43,6 +43,7 @@ class Trainer:
         self.dataset_filename_train = dataset_filename_train
         self.dataset_filename_val = dataset_filename_val
         self.batch_size = batch_size
+        self.lr = lr
         self.optimizer = AdamW(self.model.parameters(), lr=lr)
         self.save_dir = os.path.join(os.getcwd(), save_dir)
         os.makedirs(self.save_dir, exist_ok=True)
@@ -168,7 +169,7 @@ class Trainer:
             name=run_name,
             config={
                 "batch_size": self.batch_size,
-                "lr": self.optimizer.param_groups[0]["lr"],
+                "lr": self.lr,
                 "num_examples": num_examples,
                 "log_every": log_every,
                 "eval_every": eval_every,
