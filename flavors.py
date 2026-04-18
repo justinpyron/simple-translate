@@ -40,6 +40,13 @@ class Flavor(BaseModel):
         )
         return tokenizer, model
 
+    # TODO: Add three separate loading methods? --> load_tokenizer, load_model, load_flavors?
+    #       Add an arg with default None, which initializes randomly from 0.
+    #       If not None, it's a path to weights --> load the model from these weights.
+    # TODO: Is it possible to initialize a model without initializing weights?
+    #       Would be nice for pre-trained models to directly load them,
+    #       instead of init with random then load weights.
+
 
 FLAVORS: dict[str, Flavor] = {
     "tiny": Flavor(
