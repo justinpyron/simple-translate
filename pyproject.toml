@@ -21,4 +21,5 @@ dev = [
     "tokenizers>=0.22.2",
     "torch>=2.11.0",
     "transformers>=5.5.4",
+    "wandb>=0.26.0",
 ]
