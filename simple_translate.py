@@ -299,8 +299,8 @@ class SimpleTranslate(nn.Module):
             return logits
         else:
             loss = F.cross_entropy(
-                logits.view(-1, logits.size(-1)),
-                targets.view(-1),
+                logits.reshape(-1, logits.size(-1)),
+                targets.reshape(-1),
                 ignore_index=self.token_id_pad,
             )
             return loss

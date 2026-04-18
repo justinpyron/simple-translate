@@ -9,11 +9,11 @@ from typing import Iterator, Literal
 import numpy as np
 import pandas as pd
 import torch
-import wandb
 from pydantic import BaseModel, Field
 from torch.optim import AdamW
 from transformers import PreTrainedTokenizerFast
 
+import wandb
 from simple_translate import SimpleTranslate
 
 WANDB_ENTITY = "pyron"
@@ -31,8 +31,6 @@ class TrainingConfig(BaseModel):
     Pair this with a `(tokenizer, model)` produced by `flavors.load_flavor(...)`
     and hand both to `Trainer`.
     """
-
-    model_config = {"extra": "forbid"}
 
     # Data
     dataset_filename_train: Path
