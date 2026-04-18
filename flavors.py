@@ -50,13 +50,24 @@ FLAVORS: dict[str, Flavor] = {
     "tiny": Flavor(
         name="tiny",
         tokenizer_dir=Path("tokenizer_1000"),
-        max_sequence_length=256,
-        dim_embedding=128,
-        dim_head=16,
+        max_sequence_length=128,
+        dim_embedding=64,
+        dim_head=8,
         num_heads=8,
-        dim_mlp=256,
+        dim_mlp=128,
         dropout=0.1,
         num_blocks=4,
+    ),
+    "mini": Flavor(
+        name="tiny",
+        tokenizer_dir=Path("tokenizer_1000"),
+        max_sequence_length=512,
+        dim_embedding=128,
+        dim_head=16,
+        num_heads=4,
+        dim_mlp=256,
+        dropout=0.1,
+        num_blocks=8,
     ),
 }
 

@@ -16,8 +16,8 @@ from transformers import PreTrainedTokenizerFast
 
 from simple_translate import SimpleTranslate
 
-WANDB_ENTITY = "PLACEHOLDER_ENTITY"  # TODO: replace with real entity
-WANDB_PROJECT = "PLACEHOLDER_PROJECT"  # TODO: replace with real project
+WANDB_ENTITY = "pyron"
+WANDB_PROJECT = "simple-translate"
 
 COL_EN = "en"
 COL_FR = "fr"
