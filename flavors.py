@@ -34,7 +34,7 @@ class Flavor(BaseModel):
             token_id_bos=tokenizer.bos_token_id,
             token_id_eos=tokenizer.eos_token_id,
             token_id_pad=tokenizer.pad_token_id,
-            **self.model_dump(exclude={"name", "tokenizer_dir"}),
+            **self.model_dump(exclude={"tokenizer_dir"}),
         )
         return tokenizer, model
 

@@ -166,6 +166,7 @@ class DecoderBlock(nn.Module):
 class SimpleTranslate(nn.Module):
     def __init__(
         self,
+        name: str,
         vocab_size: int,
         max_sequence_length: int,
         dim_embedding: int,
@@ -181,6 +182,7 @@ class SimpleTranslate(nn.Module):
         super().__init__()
 
         # Hyperparameters
+        self.name = name
         self.vocab_size = vocab_size
         self.max_sequence_length = max_sequence_length
         self.dim_embedding = dim_embedding
