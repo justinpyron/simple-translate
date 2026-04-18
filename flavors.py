@@ -16,8 +16,6 @@ from simple_translate import SimpleTranslate
 class Flavor(BaseModel):
     """A (tokenizer, model architecture) bundle identified by `name`."""
 
-    model_config = {"extra": "forbid"}
-
     name: str
     tokenizer_dir: Path
     max_sequence_length: int = Field(gt=0)
