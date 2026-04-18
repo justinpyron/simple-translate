@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-from datetime import datetime
 from pathlib import Path
 
 import torch
