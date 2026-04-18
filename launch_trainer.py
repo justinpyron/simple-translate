@@ -53,7 +53,6 @@ def main() -> None:
     )
 
     logging.basicConfig(
-        filename=f"train_{args.flavor}_{datetime.now():%Y-%m-%dT%H_%M}.log",
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )

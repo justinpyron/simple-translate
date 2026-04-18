@@ -193,7 +193,7 @@ class Trainer:
           (relies on LLN to approximate full-set loss). Otherwise use full val set.
         """
         cfg = self.config
-        run_name = f"model_{cfg.direction}_{datetime.now().strftime('%Y-%m-%dT%H_%M')}"
+        run_name = f"model_{cfg.direction}_{datetime.now().strftime('%Y%m%d_%H%M')}"
         wandb.init(
             entity=WANDB_ENTITY,
             project=WANDB_PROJECT,
