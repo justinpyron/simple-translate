@@ -16,12 +16,10 @@ from tokenizers import (
     trainers,
 )
 
-MIN_FREQUENCY = 100
-STEP_CHARS = 10_000
-
 TOKENIZERS_DIR = Path("tokenizers")
-
 DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset1M.csv"
+MIN_FREQUENCY = 100
+STEP_SIZE_CHARS = 10_000
 
 
 def _load_corpus(csv_path: Path, lang: str) -> str:
@@ -90,13 +88,13 @@ def main() -> None:
     trainer = trainers.BpeTrainer(
         vocab_size=args.vocab_size, min_frequency=MIN_FREQUENCY
     )
-    tok.train_from_iterator(_corpus_chunks(corpus, STEP_CHARS), trainer=trainer)
+    tok.train_from_iterator(_corpus_chunks(corpus, STEP_SIZE_CHARS), trainer=trainer)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     tok.save(str(out_json))
 
     print(
-        f"Saved tokenizer to {out_json} ({(time.perf_counter() - start) / 60:.2f} min)"
+        f"Saved tokenizer to {out_json} ({(time.perf_counter() - start) / 60:.1f} min)"
     )
 
 
