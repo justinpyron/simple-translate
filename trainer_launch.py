@@ -7,17 +7,17 @@ from pathlib import Path
 import modal
 import torch
 
-from flavors import load_flavor
+from flavors import FLAVORS, load_flavor
 from trainer import Trainer, TrainingConfig
 
 # =============================================================================
 # Modal Configuration
 # =============================================================================
 
-APP_NAME = "simple-translate-train"  # TODO: Update
-VOLUME_NAME = "simple-translate-vol"  # TODO: Update
-VOLUME_MOUNT_PATH = "/vol"  # TODO: Update
-DEFAULT_GPU = "A10G"  # TODO: Update
+APP_NAME = "simple-translate-train"
+VOLUME_NAME = "simple-translate-vol"
+VOLUME_MOUNT_PATH = "/vol"
+DEFAULT_GPU = "A10G"
 
 app = modal.App(APP_NAME)
 
@@ -33,9 +33,6 @@ image = (
         "tokenizers",
     )
     .add_local_python_source("simple_translate", "trainer", "flavors")
-    .add_local_dir("tokenizer_1000", "/root/tokenizer_1000")
-    .add_local_dir("tokenizer_2000", "/root/tokenizer_2000")
-    .add_local_dir("tokenizer_0500", "/root/tokenizer_0500")
 )
 
 volume = modal.Volume.from_name(VOLUME_NAME)
@@ -68,11 +65,17 @@ def train(config_dict: dict, flavor: str, resume_from: str = None):
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
+    # Assume tokenizers also live in the volume
+    for f in FLAVORS.values():
+        if not f.tokenizer_dir.is_absolute():
+            f.tokenizer_dir = Path(VOLUME_MOUNT_PATH) / f.tokenizer_dir
+
     tokenizer, model = load_flavor(flavor)
 
     if resume_from:
-        logging.info(f"Loading checkpoint from {resume_from}")
-        model.load_state_dict(torch.load(resume_from, map_location="cpu"))
+        resume_path = Path(VOLUME_MOUNT_PATH) / resume_from
+        logging.info(f"Loading checkpoint from {resume_path}")
+        model.load_state_dict(torch.load(resume_path, map_location="cpu"))
 
     trainer = Trainer(model=model, tokenizer=tokenizer, config=config)
     trainer.launch_session()
