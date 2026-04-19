@@ -19,7 +19,7 @@ from tokenizers import (
 TOKENIZERS_DIR = Path("tokenizers")
 DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset1M.csv"
 MIN_FREQUENCY = 100
-CHUNK_SIZE_ROWS = 10_000
+CHUNK_SIZE_ROWS = 100_000
 
 
 def _iter_corpus(csv_path: Path, lang: str):
