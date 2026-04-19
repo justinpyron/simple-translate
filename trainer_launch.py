@@ -51,7 +51,8 @@ volume = modal.Volume.from_name(VOL_NAME)
 def train(
     config: TrainingConfig,
     flavor: str,
-    tokenizer_dir: Path,
+    tokenizer_dir_source: Path,
+    tokenizer_dir_destination: Path,
     resume_from: str | None = None,
 ):
     from transformers import PreTrainedTokenizerFast
@@ -65,19 +66,29 @@ def train(
     config.dataset_filename_train = Path(VOL_MOUNT_PATH) / config.dataset_filename_train
     config.dataset_filename_val = Path(VOL_MOUNT_PATH) / config.dataset_filename_val
 
-    # Load tokenizer
-    tokenizer = PreTrainedTokenizerFast.from_pretrained(
-        Path(VOL_MOUNT_PATH) / tokenizer_dir
+    # Load tokenizers
+    tokenizer_source = PreTrainedTokenizerFast.from_pretrained(
+        Path(VOL_MOUNT_PATH) / tokenizer_dir_source
+    )
+    tokenizer_destination = PreTrainedTokenizerFast.from_pretrained(
+        Path(VOL_MOUNT_PATH) / tokenizer_dir_destination
     )
 
     # Load checkpoint
     checkpoint = Path(VOL_MOUNT_PATH) / resume_from if resume_from else None
     if checkpoint:
         logging.info(f"Loading checkpoint from {checkpoint}")
-    model = FLAVORS[flavor].load(tokenizer, checkpoint=str(checkpoint))
+    model = FLAVORS[flavor].load(
+        tokenizer_source, tokenizer_destination, checkpoint=str(checkpoint)
+    )
 
     # Launch training session
-    trainer = Trainer(model=model, tokenizer=tokenizer, config=config)
+    trainer = Trainer(
+        model=model,
+        tokenizer_source=tokenizer_source,
+        tokenizer_destination=tokenizer_destination,
+        config=config,
+    )
     trainer.launch_session()
     volume.commit()
 
@@ -90,7 +101,8 @@ def train(
 @app.local_entrypoint()
 def main(
     flavor: str,
-    tokenizer_dir: str,
+    tokenizer_dir_source: str,
+    tokenizer_dir_destination: str,
     dataset_filename_train: str,
     dataset_filename_val: str,
     direction: str,
@@ -124,7 +136,8 @@ def main(
     )
 
     print(f"\n🚀 Training {flavor} on {gpu}")
-    print(f"   Tokenizer: {tokenizer_dir}")
+    print(f"   Tokenizer (source):      {tokenizer_dir_source}")
+    print(f"   Tokenizer (destination): {tokenizer_dir_destination}")
     if resume_from:
         print(f"   Resume:    {resume_from}")
     print("\n   Config:")
@@ -135,6 +148,7 @@ def main(
     train.with_options(gpu=gpu).remote(
         config=cfg,
         flavor=flavor,
-        tokenizer_dir=tokenizer_dir,
+        tokenizer_dir_source=tokenizer_dir_source,
+        tokenizer_dir_destination=tokenizer_dir_destination,
         resume_from=resume_from,
     )

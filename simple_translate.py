@@ -168,7 +168,8 @@ class SimpleTranslate(nn.Module):
     def __init__(
         self,
         name: str,
-        vocab_size: int,
+        vocab_size_source: int,
+        vocab_size_destination: int,
         max_sequence_length: int,
         dim_embedding: int,
         dim_head: int,
@@ -176,15 +177,17 @@ class SimpleTranslate(nn.Module):
         dim_mlp: int,
         dropout: float,
         num_blocks: int,
-        token_id_bos: int,
-        token_id_eos: int,
-        token_id_pad: int,
+        token_id_bos_destination: int,
+        token_id_eos_destination: int,
+        token_id_pad_source: int,
+        token_id_pad_destination: int,
     ) -> None:
         super().__init__()
 
         # Hyperparameters
         self.name = name
-        self.vocab_size = vocab_size
+        self.vocab_size_source = vocab_size_source
+        self.vocab_size_destination = vocab_size_destination
         self.max_sequence_length = max_sequence_length
         self.dim_embedding = dim_embedding
         self.dim_head = dim_head
@@ -192,9 +195,10 @@ class SimpleTranslate(nn.Module):
         self.dim_mlp = dim_mlp
         self.dropout = dropout
         self.num_blocks = num_blocks
-        self.token_id_bos = token_id_bos
-        self.token_id_eos = token_id_eos
-        self.token_id_pad = token_id_pad
+        self.token_id_bos_destination = token_id_bos_destination
+        self.token_id_eos_destination = token_id_eos_destination
+        self.token_id_pad_source = token_id_pad_source
+        self.token_id_pad_destination = token_id_pad_destination
 
         # Buffers
         self.register_buffer(
@@ -202,7 +206,10 @@ class SimpleTranslate(nn.Module):
         )
 
         # Modules
-        self.token_embedder = nn.Embedding(vocab_size, dim_embedding)
+        self.token_embedder_source = nn.Embedding(vocab_size_source, dim_embedding)
+        self.token_embedder_destination = nn.Embedding(
+            vocab_size_destination, dim_embedding
+        )
         self.position_embedder_encoder = nn.Embedding(
             max_sequence_length, dim_embedding
         )
@@ -223,7 +230,7 @@ class SimpleTranslate(nn.Module):
             ]
         )
         self.layernorm_decoder = nn.LayerNorm(dim_embedding)
-        self.classification_head = nn.Linear(dim_embedding, vocab_size)
+        self.classification_head = nn.Linear(dim_embedding, vocab_size_destination)
         self.apply(self.init_weights)
 
     def init_weights(self, module) -> None:
@@ -264,7 +271,7 @@ class SimpleTranslate(nn.Module):
         attention_mask_encoder: torch.Tensor,
     ) -> torch.Tensor:
         n_tokens = tokens_source.shape[1]
-        token_embedding = self.token_embedder(tokens_source)
+        token_embedding = self.token_embedder_source(tokens_source)
         position_embedding = self.position_embedder_encoder(
             self.position_idx[:n_tokens]
         )
@@ -281,7 +288,7 @@ class SimpleTranslate(nn.Module):
         x_encoder: torch.Tensor,
     ) -> torch.Tensor:
         n_tokens = tokens_destination.shape[1]
-        token_embedding = self.token_embedder(tokens_destination)
+        token_embedding = self.token_embedder_destination(tokens_destination)
         position_embedding = self.position_embedder_decoder(
             self.position_idx[:n_tokens]
         )
@@ -300,7 +307,7 @@ class SimpleTranslate(nn.Module):
     ) -> torch.Tensor | float:
 
         # Step 1: Encoder
-        pad_mask_source = (tokens_source != self.token_id_pad).int()
+        pad_mask_source = (tokens_source != self.token_id_pad_source).int()
         if x_encoder is None:
             attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
                 -1, tokens_source.shape[-1], -1
@@ -323,7 +330,7 @@ class SimpleTranslate(nn.Module):
             loss = F.cross_entropy(
                 logits.reshape(-1, logits.size(-1)),
                 targets.reshape(-1),
-                ignore_index=self.token_id_pad,
+                ignore_index=self.token_id_pad_destination,
             )
             return loss
 
@@ -352,12 +359,12 @@ class SimpleTranslate(nn.Module):
         tokens_source = tokens_source[:, -self.max_sequence_length :]
 
         if tokens_destination is None:
-            tokens_destination = torch.tensor([[self.token_id_bos]])
+            tokens_destination = torch.tensor([[self.token_id_bos_destination]])
 
         with torch.no_grad():
 
             # Compute encoder output
-            pad_mask_source = (tokens_source != self.token_id_pad).int()
+            pad_mask_source = (tokens_source != self.token_id_pad_source).int()
             attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
                 -1, tokens_source.shape[-1], -1
             )
@@ -374,7 +381,7 @@ class SimpleTranslate(nn.Module):
                 probability = F.softmax(logits_final_token / temperature, dim=-1)
                 next_token = torch.multinomial(probability, num_samples=1)
                 tokens_destination = torch.cat((tokens_destination, next_token), dim=-1)
-                if next_token[0, 0] == self.token_id_eos:
+                if next_token[0, 0] == self.token_id_eos_destination:
                     break
 
         return tokens_destination
@@ -398,7 +405,7 @@ class SimpleTranslate(nn.Module):
         tokens_source = tokens_source[:, -self.max_sequence_length :]
 
         if tokens_destination is None:
-            tokens_destination = torch.tensor([[self.token_id_bos]])
+            tokens_destination = torch.tensor([[self.token_id_bos_destination]])
 
         Beam = namedtuple("Beam", ["tokens", "log_probability", "is_finished"])
         finished_beams = list()
@@ -406,7 +413,7 @@ class SimpleTranslate(nn.Module):
         with torch.no_grad():
 
             # Compute encoder output
-            pad_mask_source = (tokens_source != self.token_id_pad).int()
+            pad_mask_source = (tokens_source != self.token_id_pad_source).int()
             attention_mask_encoder = pad_mask_source.unsqueeze(dim=1).expand(
                 -1, tokens_source.shape[-1], -1
             )
@@ -428,7 +435,7 @@ class SimpleTranslate(nn.Module):
                         Beam(
                             torch.cat((beam.tokens, torch.tensor([[token]])), dim=-1),
                             beam.log_probability + np.log(prob),
-                            token == self.token_id_eos,
+                            token == self.token_id_eos_destination,
                         )
                         for token, prob in zip(candidate_tokens, candidate_prob)
                     ]

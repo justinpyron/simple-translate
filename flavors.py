@@ -31,20 +31,23 @@ class Flavor(BaseModel):
 
     def load(
         self,
-        tokenizer: PreTrainedTokenizerFast,
+        tokenizer_source: PreTrainedTokenizerFast,
+        tokenizer_destination: PreTrainedTokenizerFast,
         checkpoint: str | Path | None = None,
     ) -> SimpleTranslate:
         """Build a model for this flavor, optionally loading pretrained weights.
 
         When `checkpoint` is `None`, returns a freshly-initialized model.
         Otherwise, loads the state dict at `checkpoint` into a model sized for
-        `tokenizer`.
+        the provided tokenizers.
         """
         kwargs = dict(
-            vocab_size=tokenizer.vocab_size,
-            token_id_bos=tokenizer.bos_token_id,
-            token_id_eos=tokenizer.eos_token_id,
-            token_id_pad=tokenizer.pad_token_id,
+            vocab_size_source=tokenizer_source.vocab_size,
+            vocab_size_destination=tokenizer_destination.vocab_size,
+            token_id_bos_destination=tokenizer_destination.bos_token_id,
+            token_id_eos_destination=tokenizer_destination.eos_token_id,
+            token_id_pad_source=tokenizer_source.pad_token_id,
+            token_id_pad_destination=tokenizer_destination.pad_token_id,
             **self.model_dump(),
         )
         if checkpoint is None:
