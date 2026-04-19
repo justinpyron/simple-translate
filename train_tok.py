@@ -1,11 +1,9 @@
 """Train a Hugging Face `tokenizers` BPE tokenizer for English or French text."""
 
-from __future__ import annotations
-
+import argparse
 import time
 from pathlib import Path
 
-import click
 import pandas as pd
 
 from tokenizers import (
@@ -46,49 +44,58 @@ def _make_tokenizer() -> Tokenizer:
     return tok
 
 
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.option(
-    "--lang",
-    type=click.Choice(["en", "fr"], case_sensitive=True),
-    required=True,
-    help="Train on the English or French column of the CSV.",
-)
-@click.option(
-    "--vocab-size",
-    "-v",
-    type=int,
-    required=True,
-    help="Target vocabulary size for BPE.",
-)
-@click.option(
-    "--data",
-    "csv_path",
-    type=click.Path(path_type=Path, exists=True, dir_okay=False),
-    default=DEFAULT_DATA,
-    show_default=True,
-    help="CSV with columns 'en' and 'fr'.",
-)
-@click.option(
-    "--tokenizers-dir",
-    type=click.Path(path_type=Path, file_okay=False),
-    default=TOKENIZERS_DIR,
-    show_default=True,
-    help="Directory in which per-tokenizer folders are created.",
-)
-def main(lang: str, vocab_size: int, csv_path: Path, tokenizers_dir: Path) -> None:
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Train a BPE tokenizer on the English or French column of a CSV."
+    )
+    parser.add_argument(
+        "--lang",
+        "-l",
+        required=True,
+        choices=["en", "fr"],
+        help="Language to train on ('en' or 'fr').",
+    )
+    parser.add_argument(
+        "--vocab-size",
+        "-v",
+        type=int,
+        required=True,
+        help="Target vocabulary size.",
+    )
+    parser.add_argument(
+        "--data",
+        "-d",
+        type=Path,
+        default=DEFAULT_DATA,
+        help=f"CSV with columns 'en' and 'fr' (default: {DEFAULT_DATA})",
+    )
+    parser.add_argument(
+        "--tokenizers-dir",
+        "-t",
+        type=Path,
+        default=TOKENIZERS_DIR,
+        help=f"Root directory for tokenizer output folders (default: {TOKENIZERS_DIR})",
+    )
+    args = parser.parse_args()
+
+    if not args.data.is_file():
+        parser.error(f"CSV not found: {args.data}")
+
     start = time.perf_counter()
-    out_dir = (tokenizers_dir / f"{lang}-{vocab_size}").resolve()
+    out_dir = (args.tokenizers_dir / f"{args.lang}-{args.vocab_size}").resolve()
     out_json = out_dir / "tokenizer.json"
 
-    corpus = _load_corpus(csv_path, lang)
+    corpus = _load_corpus(args.data, args.lang)
     tok = _make_tokenizer()
-    trainer = trainers.BpeTrainer(vocab_size=vocab_size, min_frequency=MIN_FREQUENCY)
+    trainer = trainers.BpeTrainer(
+        vocab_size=args.vocab_size, min_frequency=MIN_FREQUENCY
+    )
     tok.train_from_iterator(_corpus_chunks(corpus, STEP_CHARS), trainer=trainer)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     tok.save(str(out_json))
 
-    click.echo(
+    print(
         f"Saved tokenizer to {out_json} ({(time.perf_counter() - start) / 60:.2f} min)"
     )
 
