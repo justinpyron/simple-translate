@@ -82,6 +82,8 @@ def train(
     model = FLAVORS[flavor].load(
         tokenizer_source, tokenizer_destination, checkpoint=checkpoint
     )
+    num_params = sum(p.numel() for p in model.parameters())
+    logging.info(f"Model parameter count: {num_params:,}")
 
     # Launch training session
     trainer = Trainer(
