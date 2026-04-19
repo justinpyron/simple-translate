@@ -39,7 +39,8 @@ class TrainingConfig(BaseModel):
     direction: Literal["en2fr", "fr2en"]
 
     # Optimization
-    batch_size: int = Field(gt=0)
+    batch_size_train: int = Field(gt=0)
+    batch_size_val: int = Field(gt=0)
     lr_start: float = Field(gt=0)
     lr_end: float = Field(gt=0)
     warmup_examples: int = Field(ge=0)
@@ -78,8 +79,8 @@ class Trainer:
         self.optimizer = AdamW(self.model.parameters(), lr=config.lr_start)
 
         # Setup Scheduler
-        total_batches = config.num_train_examples // config.batch_size
-        warmup_batches = config.warmup_examples // config.batch_size
+        total_batches = config.num_train_examples // config.batch_size_train
+        warmup_batches = config.warmup_examples // config.batch_size_train
 
         if warmup_batches > 0:
             warmup_sched = LinearLR(
@@ -121,7 +122,7 @@ class Trainer:
             reader = pd.read_csv(
                 self.config.dataset_filename_train,
                 header=0,
-                chunksize=self.config.batch_size,
+                chunksize=self.config.batch_size_train,
             )
             for text_batch in reader:
                 yield text_batch.dropna(axis=0, how="any")
@@ -198,7 +199,7 @@ class Trainer:
         reader = pd.read_csv(
             self.config.dataset_filename_val,
             header=0,
-            chunksize=self.config.batch_size,
+            chunksize=self.config.batch_size_val,
         )
         losses = []
         examples_seen = 0
