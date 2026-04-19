@@ -5,9 +5,8 @@ import os
 from pathlib import Path
 
 import modal
-import torch
 
-from flavors import FLAVORS, load_flavor
+from flavors import FLAVORS
 from trainer import Trainer, TrainingConfig
 
 # =============================================================================
@@ -50,32 +49,35 @@ volume = modal.Volume.from_name(VOLUME_NAME)
     timeout=24 * 60 * 60,
     secrets=[modal.Secret.from_name("wandb-secret")],
 )
-def train(config_dict: dict, flavor: str, resume_from: str = None):
-    os.chdir("/root")
-    config = TrainingConfig(**config_dict)
+def train(
+    config_dict: dict,
+    flavor: str,
+    tokenizer_dir: str,
+    resume_from: str | None = None,
+):
+    from transformers import PreTrainedTokenizerFast
 
-    # Assume data and weights live in the volume
+    os.chdir("/root")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+
+    # Data, tokenizers, and weights all live in the volume.
+    config = TrainingConfig(**config_dict)
     config.save_dir = Path(VOLUME_MOUNT_PATH) / config.save_dir
     config.dataset_filename_train = (
         Path(VOLUME_MOUNT_PATH) / config.dataset_filename_train
     )
     config.dataset_filename_val = Path(VOLUME_MOUNT_PATH) / config.dataset_filename_val
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    tokenizer = PreTrainedTokenizerFast.from_pretrained(
+        str(Path(VOLUME_MOUNT_PATH) / tokenizer_dir)
     )
 
-    # Assume tokenizers also live in the volume
-    for f in FLAVORS.values():
-        if not f.tokenizer_dir.is_absolute():
-            f.tokenizer_dir = Path(VOLUME_MOUNT_PATH) / f.tokenizer_dir
-
-    tokenizer, model = load_flavor(flavor)
-
-    if resume_from:
-        resume_path = Path(VOLUME_MOUNT_PATH) / resume_from
-        logging.info(f"Loading checkpoint from {resume_path}")
-        model.load_state_dict(torch.load(resume_path, map_location="cpu"))
+    checkpoint = str(Path(VOLUME_MOUNT_PATH) / resume_from) if resume_from else None
+    if checkpoint:
+        logging.info(f"Loading checkpoint from {checkpoint}")
+    model = FLAVORS[flavor].load(tokenizer, checkpoint=checkpoint)
 
     trainer = Trainer(model=model, tokenizer=tokenizer, config=config)
     trainer.launch_session()
@@ -92,6 +94,7 @@ def main(
     flavor: str,
     dataset_filename_train: str,
     dataset_filename_val: str,
+    tokenizer_dir: str,
     num_examples: int,
     log_every: int,
     eval_every: int,
@@ -104,6 +107,11 @@ def main(
     max_eval_examples: int = None,
 ):
     """Launch SimpleTranslate training on Modal."""
+    if flavor not in FLAVORS:
+        raise ValueError(
+            f"Unknown flavor {flavor!r}. Available flavors: {sorted(FLAVORS)}"
+        )
+
     config_dict = {
         "dataset_filename_train": dataset_filename_train,
         "dataset_filename_val": dataset_filename_val,
@@ -120,6 +128,7 @@ def main(
     print("=" * 80)
     print(f"Launching SimpleTranslate training on Modal ({gpu})...")
     print(f"  Flavor: {flavor}")
+    print(f"  Tokenizer dir: {tokenizer_dir} (in volume {VOLUME_NAME})")
     print(f"  Train data: {dataset_filename_train}")
     print(f"  Val data: {dataset_filename_val}")
     print(f"  Num examples: {num_examples}")
@@ -129,5 +138,6 @@ def main(
     train.with_options(gpu=gpu).remote(
         config_dict=config_dict,
         flavor=flavor,
+        tokenizer_dir=tokenizer_dir,
         resume_from=resume_from,
     )
