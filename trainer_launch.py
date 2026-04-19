@@ -14,10 +14,10 @@ from trainer import Trainer, TrainingConfig
 # Modal Configuration
 # =============================================================================
 
-APP_NAME = "simple-translate-train"
-VOLUME_NAME = "simple-translate-vol"
-VOLUME_MOUNT_PATH = "/vol"
-DEFAULT_GPU = "A10G"
+APP_NAME = "simple-translate-train"  # TODO: Update
+VOLUME_NAME = "simple-translate-vol"  # TODO: Update
+VOLUME_MOUNT_PATH = "/vol"  # TODO: Update
+DEFAULT_GPU = "A10G"  # TODO: Update
 
 app = modal.App(APP_NAME)
 
@@ -32,15 +32,12 @@ image = (
         "pydantic",
         "tokenizers",
     )
-    .add_local_file("trainer.py", "/root/trainer.py")
-    .add_local_file("flavors.py", "/root/flavors.py")
-    .add_local_file("simple_translate.py", "/root/simple_translate.py")
-    .add_local_file("model_configs.py", "/root/model_configs.py")
-    .add_local_file("interfaces.py", "/root/interfaces.py")
+    .add_local_python_source(
+        "trainer", "flavors", "simple_translate", "model_configs", "interfaces"
+    )
     .add_local_dir("tokenizer_1000", "/root/tokenizer_1000")
     .add_local_dir("tokenizer_2000", "/root/tokenizer_2000")
     .add_local_dir("tokenizer_0500", "/root/tokenizer_0500")
-    .add_local_dir("data", "/root/data")
 )
 
 volume = modal.Volume.from_name(VOLUME_NAME)
@@ -61,7 +58,13 @@ volume = modal.Volume.from_name(VOLUME_NAME)
 def train(config_dict: dict, flavor: str, resume_from: str = None):
     os.chdir("/root")
     config = TrainingConfig(**config_dict)
+
+    # Assume data and weights live in the volume
     config.save_dir = Path(VOLUME_MOUNT_PATH) / config.save_dir
+    config.dataset_filename_train = (
+        Path(VOLUME_MOUNT_PATH) / config.dataset_filename_train
+    )
+    config.dataset_filename_val = Path(VOLUME_MOUNT_PATH) / config.dataset_filename_val
 
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
