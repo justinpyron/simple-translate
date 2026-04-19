@@ -32,14 +32,18 @@ image = (
         "pydantic",
         "tokenizers",
     )
-    .add_local_dir(
-        ".",
-        remote_path="/root",
-        ignore_list=[".git", "__pycache__", "wandb", "weights", "results", "notebooks"],
-    )
+    .add_local_file("trainer.py", "/root/trainer.py")
+    .add_local_file("flavors.py", "/root/flavors.py")
+    .add_local_file("simple_translate.py", "/root/simple_translate.py")
+    .add_local_file("model_configs.py", "/root/model_configs.py")
+    .add_local_file("interfaces.py", "/root/interfaces.py")
+    .add_local_dir("tokenizer_1000", "/root/tokenizer_1000")
+    .add_local_dir("tokenizer_2000", "/root/tokenizer_2000")
+    .add_local_dir("tokenizer_0500", "/root/tokenizer_0500")
+    .add_local_dir("data", "/root/data")
 )
 
-volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
+volume = modal.Volume.from_name(VOLUME_NAME)
 
 
 # =============================================================================
@@ -51,49 +55,26 @@ volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
     image=image,
     volumes={VOLUME_MOUNT_PATH: volume},
     gpu=DEFAULT_GPU,
-    timeout=24 * 60 * 60,  # 24 hours
+    timeout=24 * 60 * 60,
     secrets=[modal.Secret.from_name("wandb-secret")],
 )
 def train(config_dict: dict, flavor: str, resume_from: str = None):
-    # Ensure we are in the root directory where the code was added
     os.chdir("/root")
-
-    # Reconstruct the config. All paths are relative to /root or the volume.
     config = TrainingConfig(**config_dict)
-
-    # If save_dir is relative, redirect it to the volume
-    if not config.save_dir.is_absolute():
-        config.save_dir = Path(VOLUME_MOUNT_PATH) / config.save_dir
+    config.save_dir = Path(VOLUME_MOUNT_PATH) / config.save_dir
 
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
     tokenizer, model = load_flavor(flavor)
 
-    if resume_from is not None:
-        resume_path = Path(resume_from)
-        # Try finding the checkpoint in various locations
-        possible_paths = [
-            resume_path,
-            Path("/root") / resume_path,
-            Path(VOLUME_MOUNT_PATH) / resume_path,
-        ]
-        found = False
-        for p in possible_paths:
-            if p.exists():
-                logging.info(f"Loading checkpoint from {p}")
-                model.load_state_dict(torch.load(p, map_location="cpu"))
-                found = True
-                break
-        if not found:
-            logging.warning(f"Could not find checkpoint at {resume_from}")
+    if resume_from:
+        logging.info(f"Loading checkpoint from {resume_from}")
+        model.load_state_dict(torch.load(resume_from, map_location="cpu"))
 
     trainer = Trainer(model=model, tokenizer=tokenizer, config=config)
     trainer.launch_session()
-
-    # Commit the volume to ensure weights are saved
     volume.commit()
 
 
