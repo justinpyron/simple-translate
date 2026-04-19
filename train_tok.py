@@ -38,9 +38,7 @@ def _iter_corpus(csv_path: Path, lang: str):
 def _make_tokenizer() -> Tokenizer:
     """Initialize a BPE tokenizer with ByteLevel pre-tokenization and NFD normalization."""
     tok = Tokenizer(models.BPE())
-    tok.normalizer = normalizers.Sequence(
-        [normalizers.NFD(), normalizers.Lowercase(), normalizers.Strip()]
-    )
+    tok.normalizer = normalizers.Sequence([normalizers.NFD(), normalizers.Strip()])
     tok.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
 
     # TemplateProcessing handles automatic BOS/EOS wrapping for NMT.
