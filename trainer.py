@@ -42,7 +42,7 @@ class TrainingConfig(BaseModel):
     batch_size: int = Field(gt=0)
     lr_start: float = Field(gt=0)
     lr_end: float = Field(gt=0)
-    warmup_steps: int = Field(ge=0)
+    warmup_examples: int = Field(ge=0)
 
     # Runtime
     save_dir: Path
@@ -78,31 +78,33 @@ class Trainer:
         self.optimizer = AdamW(self.model.parameters(), lr=config.lr_start)
 
         # Setup Scheduler
-        total_steps = config.num_examples // config.batch_size
-        if config.warmup_steps > 0:
+        total_batches = config.num_examples // config.batch_size
+        warmup_batches = config.warmup_examples // config.batch_size
+
+        if warmup_batches > 0:
             warmup_sched = LinearLR(
                 self.optimizer,
                 start_factor=1e-5,
                 end_factor=1.0,
-                total_iters=config.warmup_steps,
+                total_iters=warmup_batches,
             )
             decay_sched = LinearLR(
                 self.optimizer,
                 start_factor=1.0,
                 end_factor=config.lr_end / config.lr_start,
-                total_iters=max(1, total_steps - config.warmup_steps),
+                total_iters=max(1, total_batches - warmup_batches),
             )
             self.scheduler = SequentialLR(
                 self.optimizer,
                 schedulers=[warmup_sched, decay_sched],
-                milestones=[config.warmup_steps],
+                milestones=[warmup_batches],
             )
         else:
             self.scheduler = LinearLR(
                 self.optimizer,
                 start_factor=1.0,
                 end_factor=config.lr_end / config.lr_start,
-                total_iters=max(1, total_steps),
+                total_iters=max(1, total_batches),
             )
 
         config.save_dir.mkdir(parents=True, exist_ok=True)

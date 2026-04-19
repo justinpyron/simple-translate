@@ -115,7 +115,7 @@ def main(
     batch_size: int,
     lr_start: float,
     lr_end: float,
-    warmup_steps: int,
+    warmup_examples: int,
     save_dir: str = DEFAULT_SAVE_DIR,
     resume_from: str = None,
     max_eval_examples: int = None,
@@ -136,7 +136,7 @@ def main(
         batch_size=batch_size,
         lr_start=lr_start,
         lr_end=lr_end,
-        warmup_steps=warmup_steps,
+        warmup_examples=warmup_examples,
         save_dir=save_dir,
         max_eval_examples=max_eval_examples,
     )
