@@ -38,7 +38,7 @@ class TrainingConfig(BaseModel):
     direction: Literal["en2fr", "fr2en"] = "en2fr"
 
     # Optimization
-    batch_size: int = Field(64, gt=0)
+    batch_size: int = Field(32, gt=0)
     lr: float = Field(1e-3, gt=0)
 
     # Runtime
