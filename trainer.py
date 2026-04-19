@@ -35,14 +35,14 @@ class TrainingConfig(BaseModel):
     # Data
     dataset_filename_train: Path
     dataset_filename_val: Path
-    direction: Literal["en2fr", "fr2en"] = "en2fr"
+    direction: Literal["en2fr", "fr2en"]
 
     # Optimization
-    batch_size: int = Field(64, gt=0)
-    lr: float = Field(1e-3, gt=0)
+    batch_size: int = Field(gt=0)
+    lr: float = Field(gt=0)
 
     # Runtime
-    save_dir: Path = Path("results")
+    save_dir: Path
     device: str | None = None  # auto-detected if None
 
     # Session schedule
@@ -56,7 +56,8 @@ class Trainer:
     def __init__(
         self,
         model: SimpleTranslate,
-        tokenizer: PreTrainedTokenizerFast,
+        tokenizer_source: PreTrainedTokenizerFast,
+        tokenizer_destination: PreTrainedTokenizerFast,
         config: TrainingConfig,
     ) -> None:
         if not os.environ.get("WANDB_API_KEY"):
@@ -67,7 +68,8 @@ class Trainer:
         self.config = config
         self.device = config.device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
-        self.tokenizer = tokenizer
+        self.tokenizer_source = tokenizer_source
+        self.tokenizer_destination = tokenizer_destination
         self.source_column = COL_EN if config.direction == "en2fr" else COL_FR
         self.target_column = COL_FR if config.direction == "en2fr" else COL_EN
         self.optimizer = AdamW(self.model.parameters(), lr=config.lr)
@@ -95,7 +97,7 @@ class Trainer:
         text_source: list[str],
         text_destination: list[str],
     ) -> tuple[torch.tensor, torch.tensor]:
-        tokens_source = self.tokenizer(
+        tokens_source = self.tokenizer_source(
             text_source,
             padding=True,
             truncation=True,
@@ -104,7 +106,7 @@ class Trainer:
             return_token_type_ids=False,
             return_tensors="pt",
         )["input_ids"]
-        tokens_destination = self.tokenizer(
+        tokens_destination = self.tokenizer_destination(
             text_destination,
             padding=True,
             truncation=True,
@@ -114,7 +116,6 @@ class Trainer:
             return_tensors="pt",
         )["input_ids"]
         return tokens_source, tokens_destination
-        # TODO: Train two tokenizers: one for source and one for destination?
 
     def train_one_batch(
         self,
