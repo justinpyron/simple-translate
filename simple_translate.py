@@ -1,4 +1,5 @@
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -237,6 +238,25 @@ class SimpleTranslate(nn.Module):
                 std=1 / torch.tensor(2 * self.dim_embedding).sqrt(),
                 # Multiply by 2 bc token and position embeddings get added
             )
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        checkpoint: str | Path,
+        map_location: str = "cpu",
+        **kwargs,
+    ) -> "SimpleTranslate":
+        """Build a model and load weights from `checkpoint`.
+
+        `kwargs` are forwarded to `__init__` and must match the architecture
+        and tokenizer config used when the checkpoint was produced.
+        """
+        model = cls(**kwargs)
+        state_dict = torch.load(
+            checkpoint, map_location=map_location, weights_only=True
+        )
+        model.load_state_dict(state_dict)
+        return model
 
     def forward_encoder(
         self,
