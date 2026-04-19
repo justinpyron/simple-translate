@@ -19,21 +19,18 @@ from tokenizers import (
 TOKENIZERS_DIR = Path("tokenizers")
 DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset1M.csv"
 MIN_FREQUENCY = 100
-STEP_SIZE_CHARS = 10_000
+CHUNK_SIZE_ROWS = 10_000
 
 
-def _load_corpus(csv_path: Path, lang: str) -> str:
-    df = pd.read_csv(csv_path)
+def _iter_corpus(csv_path: Path, lang: str):
+    """Yield text chunks from a CSV file to avoid loading everything at once."""
     col = "en" if lang == "en" else "fr"
-    return "\n".join(df[col].dropna().str.strip().astype(str).tolist())
-
-
-def _corpus_chunks(corpus: str, step: int):
-    for i in range(0, len(corpus), step):
-        yield corpus[i : i + step]
+    for df_chunk in pd.read_csv(csv_path, chunksize=CHUNK_SIZE_ROWS):
+        yield "\n".join(df_chunk[col].dropna().str.strip().astype(str))
 
 
 def _make_tokenizer() -> Tokenizer:
+    """Initialize a BPE tokenizer with ByteLevel pre-tokenization and NFD normalization."""
     tok = Tokenizer(models.BPE())
     tok.normalizer = normalizers.Sequence([normalizers.NFD(), normalizers.Lowercase()])
     tok.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
@@ -83,12 +80,11 @@ def main() -> None:
     out_dir = (args.tokenizers_dir / f"{args.lang}-{args.vocab_size}").resolve()
     out_json = out_dir / "tokenizer.json"
 
-    corpus = _load_corpus(args.data, args.lang)
     tok = _make_tokenizer()
     trainer = trainers.BpeTrainer(
         vocab_size=args.vocab_size, min_frequency=MIN_FREQUENCY
     )
-    tok.train_from_iterator(_corpus_chunks(corpus, STEP_SIZE_CHARS), trainer=trainer)
+    tok.train_from_iterator(_iter_corpus(args.data, args.lang), trainer=trainer)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     tok.save(str(out_json))
