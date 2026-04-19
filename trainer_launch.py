@@ -15,7 +15,7 @@ from trainer import Trainer, TrainingConfig
 APP_NAME = "simple-translate"
 VOL_NAME = "simple-translate"
 VOL_MOUNT_PATH = "/vol"
-DEFAULT_GPU = "A10"
+DEFAULT_GPU = "A100"
 DEFAULT_SAVE_DIR = "weights"
 
 app = modal.App(APP_NAME)
