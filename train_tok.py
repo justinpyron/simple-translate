@@ -71,24 +71,30 @@ def main() -> None:
         default=TOKENIZERS_DIR,
         help=f"Root directory for tokenizer output folders (default: {TOKENIZERS_DIR})",
     )
+
+    # --- Parse and Validate Arguments ---
     args = parser.parse_args()
 
     if not args.data.is_file():
         parser.error(f"CSV not found: {args.data}")
 
+    # --- Setup Output Paths ---
     start = time.perf_counter()
-    out_dir = (args.tokenizers_dir / f"{args.lang}-{args.vocab_size}").resolve()
+    out_dir = (args.tokenizers_dir / f"{args.lang}-vocab_{args.vocab_size}").resolve()
     out_json = out_dir / "tokenizer.json"
 
+    # --- Initialize and Train Tokenizer ---
     tok = _make_tokenizer()
     trainer = trainers.BpeTrainer(
         vocab_size=args.vocab_size, min_frequency=MIN_FREQUENCY
     )
     tok.train_from_iterator(_iter_corpus(args.data, args.lang), trainer=trainer)
 
+    # --- Save Artifacts ---
     out_dir.mkdir(parents=True, exist_ok=True)
     tok.save(str(out_json))
 
+    # --- Final Report ---
     print(
         f"Saved tokenizer to {out_json} ({(time.perf_counter() - start) / 60:.1f} min)"
     )
