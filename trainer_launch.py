@@ -7,7 +7,7 @@ from pathlib import Path
 import modal
 import torch
 
-from flavors import FLAVORS, load_flavor
+from flavors import load_flavor
 from trainer import Trainer, TrainingConfig
 
 # =============================================================================
@@ -32,9 +32,7 @@ image = (
         "pydantic",
         "tokenizers",
     )
-    .add_local_python_source(
-        "trainer", "flavors", "simple_translate", "model_configs", "interfaces"
-    )
+    .add_local_python_source("simple_translate", "trainer", "flavors")
     .add_local_dir("tokenizer_1000", "/root/tokenizer_1000")
     .add_local_dir("tokenizer_2000", "/root/tokenizer_2000")
     .add_local_dir("tokenizer_0500", "/root/tokenizer_0500")
