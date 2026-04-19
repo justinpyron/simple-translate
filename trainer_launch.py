@@ -1,7 +1,6 @@
 """Launch a SimpleTranslate training session on Modal."""
 
 import logging
-import os
 from pathlib import Path
 
 import modal
@@ -50,7 +49,7 @@ volume = modal.Volume.from_name(VOL_NAME)
     secrets=[modal.Secret.from_name("wandb-secret")],
 )
 def train(
-    config_dict: dict,
+    config: TrainingConfig,
     flavor: str,
     tokenizer_dir: Path,
     resume_from: str | None = None,
@@ -62,10 +61,9 @@ def train(
     )
 
     # Load config
-    cfg = TrainingConfig(**config_dict)
-    cfg.save_dir = Path(VOL_MOUNT_PATH) / cfg.save_dir
-    cfg.dataset_filename_train = Path(VOL_MOUNT_PATH) / cfg.dataset_filename_train
-    cfg.dataset_filename_val = Path(VOL_MOUNT_PATH) / cfg.dataset_filename_val
+    config.save_dir = Path(VOL_MOUNT_PATH) / config.save_dir
+    config.dataset_filename_train = Path(VOL_MOUNT_PATH) / config.dataset_filename_train
+    config.dataset_filename_val = Path(VOL_MOUNT_PATH) / config.dataset_filename_val
 
     # Load tokenizer
     tokenizer = PreTrainedTokenizerFast.from_pretrained(
@@ -79,7 +77,7 @@ def train(
     model = FLAVORS[flavor].load(tokenizer, checkpoint=str(checkpoint))
 
     # Launch training session
-    trainer = Trainer(model=model, tokenizer=tokenizer, config=cfg)
+    trainer = Trainer(model=model, tokenizer=tokenizer, config=config)
     trainer.launch_session()
     volume.commit()
 
@@ -112,29 +110,30 @@ def main(
             f"Unknown flavor {flavor!r}. Available flavors: {sorted(FLAVORS)}"
         )
 
-    config_dict = {
-        "dataset_filename_train": dataset_filename_train,
-        "dataset_filename_val": dataset_filename_val,
-        "direction": direction,
-        "num_examples": num_examples,
-        "log_every": log_every,
-        "eval_every": eval_every,
-        "batch_size": batch_size,
-        "lr": lr,
-        "save_dir": save_dir,
-        "max_eval_examples": max_eval_examples,
-    }
+    cfg = TrainingConfig(
+        dataset_filename_train=dataset_filename_train,
+        dataset_filename_val=dataset_filename_val,
+        direction=direction,
+        num_examples=num_examples,
+        log_every=log_every,
+        eval_every=eval_every,
+        batch_size=batch_size,
+        lr=lr,
+        save_dir=save_dir,
+        max_eval_examples=max_eval_examples,
+    )
 
-    print("=" * 80)
-    print(f"Launching SimpleTranslate training on Modal ({gpu})...")
-    print(f"  Flavor: {flavor}")
-    print(f"  Tokenizer dir: {tokenizer_dir} (in volume {VOL_NAME})")
-    for k, v in config_dict.items():
-        print(f"  {k}: {v}")
-    print("=" * 80)
+    print(f"\n🚀 Training {flavor} on {gpu}")
+    print(f"   Tokenizer: {tokenizer_dir}")
+    if resume_from:
+        print(f"   Resume:    {resume_from}")
+    print("\n   Config:")
+    for k, v in cfg.model_dump().items():
+        print(f"     {k:<25} {v}")
+    print()
 
     train.with_options(gpu=gpu).remote(
-        config_dict=config_dict,
+        config=cfg,
         flavor=flavor,
         tokenizer_dir=tokenizer_dir,
         resume_from=resume_from,
