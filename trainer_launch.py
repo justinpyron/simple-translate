@@ -15,7 +15,7 @@ from trainer import Trainer, TrainingConfig
 APP_NAME = "simple-translate"
 VOL_NAME = "simple-translate"
 VOL_MOUNT_PATH = "/vol"
-DEFAULT_GPU = "A10G"
+DEFAULT_GPU = "A10"
 DEFAULT_SAVE_DIR = "weights"
 
 app = modal.App(APP_NAME)
@@ -114,7 +114,6 @@ def main(
     lr: float,
     save_dir: str = DEFAULT_SAVE_DIR,
     resume_from: str = None,
-    gpu: str = DEFAULT_GPU,
     max_eval_examples: int = None,
 ):
     """Launch SimpleTranslate training on Modal."""
@@ -136,7 +135,7 @@ def main(
         max_eval_examples=max_eval_examples,
     )
 
-    print(f"\n🚀 Training {flavor} on {gpu}")
+    print(f"\n🚀 Training {flavor} on Modal ({DEFAULT_GPU})")
     print(f"   Tokenizer (source):      {tokenizer_dir_source}")
     print(f"   Tokenizer (destination): {tokenizer_dir_destination}")
     if resume_from:
@@ -146,7 +145,7 @@ def main(
         print(f"     {k:<25} {v}")
     print()
 
-    train.with_options(gpu=gpu).remote(
+    train.remote(
         config=cfg,
         flavor=flavor,
         tokenizer_dir_source=tokenizer_dir_source,
