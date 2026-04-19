@@ -80,7 +80,7 @@ def train(
     if checkpoint:
         logging.info(f"Loading checkpoint from {checkpoint}")
     model = FLAVORS[flavor].load(
-        tokenizer_source, tokenizer_destination, checkpoint=str(checkpoint)
+        tokenizer_source, tokenizer_destination, checkpoint=checkpoint
     )
 
     # Launch training session
