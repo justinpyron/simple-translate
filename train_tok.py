@@ -18,7 +18,7 @@ from tokenizers import (
 )
 
 TOKENIZERS_DIR = Path("tokenizers")
-DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset1M.csv"
+DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset10M-shuffled.csv"
 MIN_FREQUENCY = 100
 CHUNK_SIZE_ROWS = 100_000
 
