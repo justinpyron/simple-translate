@@ -16,6 +16,7 @@ APP_NAME = "simple-translate"
 VOL_NAME = "simple-translate"
 VOL_MOUNT_PATH = "/vol"
 DEFAULT_GPU = "A10G"
+DEFAULT_SAVE_DIR = "weights"
 
 app = modal.App(APP_NAME)
 
@@ -109,10 +110,10 @@ def main(
     num_examples: int,
     log_every: int,
     eval_every: int,
+    batch_size: int,
+    lr: float,
+    save_dir: str = DEFAULT_SAVE_DIR,
     resume_from: str = None,
-    batch_size: int = 64,
-    lr: float = 1e-3,
-    save_dir: str = "weights",
     gpu: str = DEFAULT_GPU,
     max_eval_examples: int = None,
 ):

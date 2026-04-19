@@ -38,11 +38,11 @@ class TrainingConfig(BaseModel):
     direction: Literal["en2fr", "fr2en"]
 
     # Optimization
-    batch_size: int = Field(32, gt=0)
-    lr: float = Field(1e-3, gt=0)
+    batch_size: int = Field(gt=0)
+    lr: float = Field(gt=0)
 
     # Runtime
-    save_dir: Path = Path("results")
+    save_dir: Path
     device: str | None = None  # auto-detected if None
 
     # Session schedule
