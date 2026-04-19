@@ -35,7 +35,7 @@ class TrainingConfig(BaseModel):
     # Data
     dataset_filename_train: Path
     dataset_filename_val: Path
-    direction: Literal["en2fr", "fr2en"] = "en2fr"
+    direction: Literal["en2fr", "fr2en"]
 
     # Optimization
     batch_size: int = Field(32, gt=0)

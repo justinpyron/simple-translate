@@ -13,9 +13,9 @@ from trainer import Trainer, TrainingConfig
 # Modal Configuration
 # =============================================================================
 
-APP_NAME = "simple-translate-train"
-VOLUME_NAME = "simple-translate-vol"
-VOLUME_MOUNT_PATH = "/vol"
+APP_NAME = "simple-translate"
+VOL_NAME = "simple-translate"
+VOL_MOUNT_PATH = "/vol"
 DEFAULT_GPU = "A10G"
 
 app = modal.App(APP_NAME)
@@ -34,7 +34,7 @@ image = (
     .add_local_python_source("simple_translate", "trainer", "flavors")
 )
 
-volume = modal.Volume.from_name(VOLUME_NAME)
+volume = modal.Volume.from_name(VOL_NAME)
 
 
 # =============================================================================
@@ -44,7 +44,7 @@ volume = modal.Volume.from_name(VOLUME_NAME)
 
 @app.function(
     image=image,
-    volumes={VOLUME_MOUNT_PATH: volume},
+    volumes={VOL_MOUNT_PATH: volume},
     gpu=DEFAULT_GPU,
     timeout=24 * 60 * 60,
     secrets=[modal.Secret.from_name("wandb-secret")],
@@ -52,34 +52,34 @@ volume = modal.Volume.from_name(VOLUME_NAME)
 def train(
     config_dict: dict,
     flavor: str,
-    tokenizer_dir: str,
+    tokenizer_dir: Path,
     resume_from: str | None = None,
 ):
     from transformers import PreTrainedTokenizerFast
 
-    os.chdir("/root")
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-    # Data, tokenizers, and weights all live in the volume.
-    config = TrainingConfig(**config_dict)
-    config.save_dir = Path(VOLUME_MOUNT_PATH) / config.save_dir
-    config.dataset_filename_train = (
-        Path(VOLUME_MOUNT_PATH) / config.dataset_filename_train
-    )
-    config.dataset_filename_val = Path(VOLUME_MOUNT_PATH) / config.dataset_filename_val
+    # Load config
+    cfg = TrainingConfig(**config_dict)
+    cfg.save_dir = Path(VOL_MOUNT_PATH) / cfg.save_dir
+    cfg.dataset_filename_train = Path(VOL_MOUNT_PATH) / cfg.dataset_filename_train
+    cfg.dataset_filename_val = Path(VOL_MOUNT_PATH) / cfg.dataset_filename_val
 
+    # Load tokenizer
     tokenizer = PreTrainedTokenizerFast.from_pretrained(
-        str(Path(VOLUME_MOUNT_PATH) / tokenizer_dir)
+        Path(VOL_MOUNT_PATH) / tokenizer_dir
     )
 
-    checkpoint = str(Path(VOLUME_MOUNT_PATH) / resume_from) if resume_from else None
+    # Load checkpoint
+    checkpoint = Path(VOL_MOUNT_PATH) / resume_from if resume_from else None
     if checkpoint:
         logging.info(f"Loading checkpoint from {checkpoint}")
-    model = FLAVORS[flavor].load(tokenizer, checkpoint=checkpoint)
+    model = FLAVORS[flavor].load(tokenizer, checkpoint=str(checkpoint))
 
-    trainer = Trainer(model=model, tokenizer=tokenizer, config=config)
+    # Launch training session
+    trainer = Trainer(model=model, tokenizer=tokenizer, config=cfg)
     trainer.launch_session()
     volume.commit()
 
@@ -92,14 +92,14 @@ def train(
 @app.local_entrypoint()
 def main(
     flavor: str,
+    tokenizer_dir: str,
     dataset_filename_train: str,
     dataset_filename_val: str,
-    tokenizer_dir: str,
+    direction: str,
     num_examples: int,
     log_every: int,
     eval_every: int,
     resume_from: str = None,
-    direction: str = "en2fr",
     batch_size: int = 64,
     lr: float = 1e-3,
     save_dir: str = "weights",
@@ -115,10 +115,10 @@ def main(
     config_dict = {
         "dataset_filename_train": dataset_filename_train,
         "dataset_filename_val": dataset_filename_val,
+        "direction": direction,
         "num_examples": num_examples,
         "log_every": log_every,
         "eval_every": eval_every,
-        "direction": direction,
         "batch_size": batch_size,
         "lr": lr,
         "save_dir": save_dir,
@@ -128,11 +128,9 @@ def main(
     print("=" * 80)
     print(f"Launching SimpleTranslate training on Modal ({gpu})...")
     print(f"  Flavor: {flavor}")
-    print(f"  Tokenizer dir: {tokenizer_dir} (in volume {VOLUME_NAME})")
-    print(f"  Train data: {dataset_filename_train}")
-    print(f"  Val data: {dataset_filename_val}")
-    print(f"  Num examples: {num_examples}")
-    print(f"  Save dir: {save_dir} (in volume {VOLUME_NAME})")
+    print(f"  Tokenizer dir: {tokenizer_dir} (in volume {VOL_NAME})")
+    for k, v in config_dict.items():
+        print(f"  {k}: {v}")
     print("=" * 80)
 
     train.with_options(gpu=gpu).remote(
