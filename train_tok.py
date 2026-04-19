@@ -22,7 +22,7 @@ DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset1M.csv"
 MIN_FREQUENCY = 100
 CHUNK_SIZE_ROWS = 100_000
 
-# Special tokens for NMT.
+# Special tokens for Neural Machine Translation (NMT).
 # The order here determines their IDs (PAD=0, BOS=1, EOS=2, UNK=3).
 SPECIAL_TOKENS = ["<PAD>", "<BOS>", "<EOS>", "<UNK>"]
 TOKEN_PAD, TOKEN_BOS, TOKEN_EOS, TOKEN_UNK = SPECIAL_TOKENS
