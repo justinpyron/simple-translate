@@ -42,14 +42,14 @@ class TrainingConfig(BaseModel):
     batch_size: int = Field(gt=0)
     lr_start: float = Field(gt=0)
     lr_end: float = Field(gt=0)
-    warmup_steps: int = Field(ge=0)
+    warmup_examples: int = Field(ge=0)
 
     # Runtime
     save_dir: Path
     device: str | None = None  # auto-detected if None
 
     # Session schedule
-    num_examples: int = Field(gt=0)
+    num_train_examples: int = Field(gt=0)
     log_every: int = Field(gt=0)
     eval_every: int = Field(gt=0)
     max_eval_examples: int | None = Field(None, gt=0)
@@ -78,31 +78,33 @@ class Trainer:
         self.optimizer = AdamW(self.model.parameters(), lr=config.lr_start)
 
         # Setup Scheduler
-        total_steps = config.num_examples // config.batch_size
-        if config.warmup_steps > 0:
+        total_batches = config.num_train_examples // config.batch_size
+        warmup_batches = config.warmup_examples // config.batch_size
+
+        if warmup_batches > 0:
             warmup_sched = LinearLR(
                 self.optimizer,
                 start_factor=1e-5,
                 end_factor=1.0,
-                total_iters=config.warmup_steps,
+                total_iters=warmup_batches,
             )
             decay_sched = LinearLR(
                 self.optimizer,
                 start_factor=1.0,
                 end_factor=config.lr_end / config.lr_start,
-                total_iters=max(1, total_steps - config.warmup_steps),
+                total_iters=max(1, total_batches - warmup_batches),
             )
             self.scheduler = SequentialLR(
                 self.optimizer,
                 schedulers=[warmup_sched, decay_sched],
-                milestones=[config.warmup_steps],
+                milestones=[warmup_batches],
             )
         else:
             self.scheduler = LinearLR(
                 self.optimizer,
                 start_factor=1.0,
                 end_factor=config.lr_end / config.lr_start,
-                total_iters=max(1, total_steps),
+                total_iters=max(1, total_batches),
             )
 
         config.save_dir.mkdir(parents=True, exist_ok=True)
@@ -215,7 +217,7 @@ class Trainer:
         return float(np.mean(losses))
 
     def launch_session(self) -> None:
-        """Train until `self.examples_trained_on >= self.config.num_examples`.
+        """Train until `self.examples_trained_on >= self.config.num_train_examples`.
 
         Schedule and behavior are entirely controlled by `self.config`:
         - `log_every`: log running-mean training loss to W&B every this many examples.
@@ -233,7 +235,7 @@ class Trainer:
             config=cfg.model_dump(mode="json"),
         )
         logger.info(
-            f"Starting session {run_name} (target: {cfg.num_examples} examples)"
+            f"Starting session {run_name} (target: {cfg.num_train_examples} examples)"
         )
 
         self.model.train()
@@ -279,7 +281,7 @@ class Trainer:
                         )
                     next_eval_at += cfg.eval_every
 
-                if self.examples_trained_on >= cfg.num_examples:
+                if self.examples_trained_on >= cfg.num_train_examples:
                     break
         finally:
             elapsed_min = (time.time() - start) / 60
