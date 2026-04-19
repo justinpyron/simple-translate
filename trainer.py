@@ -49,7 +49,7 @@ class TrainingConfig(BaseModel):
     device: str | None = None  # auto-detected if None
 
     # Session schedule
-    num_examples: int = Field(gt=0)
+    num_train_examples: int = Field(gt=0)
     log_every: int = Field(gt=0)
     eval_every: int = Field(gt=0)
     max_eval_examples: int | None = Field(None, gt=0)
@@ -78,7 +78,7 @@ class Trainer:
         self.optimizer = AdamW(self.model.parameters(), lr=config.lr_start)
 
         # Setup Scheduler
-        total_batches = config.num_examples // config.batch_size
+        total_batches = config.num_train_examples // config.batch_size
         warmup_batches = config.warmup_examples // config.batch_size
 
         if warmup_batches > 0:
@@ -217,7 +217,7 @@ class Trainer:
         return float(np.mean(losses))
 
     def launch_session(self) -> None:
-        """Train until `self.examples_trained_on >= self.config.num_examples`.
+        """Train until `self.examples_trained_on >= self.config.num_train_examples`.
 
         Schedule and behavior are entirely controlled by `self.config`:
         - `log_every`: log running-mean training loss to W&B every this many examples.
@@ -235,7 +235,7 @@ class Trainer:
             config=cfg.model_dump(mode="json"),
         )
         logger.info(
-            f"Starting session {run_name} (target: {cfg.num_examples} examples)"
+            f"Starting session {run_name} (target: {cfg.num_train_examples} examples)"
         )
 
         self.model.train()
@@ -281,7 +281,7 @@ class Trainer:
                         )
                     next_eval_at += cfg.eval_every
 
-                if self.examples_trained_on >= cfg.num_examples:
+                if self.examples_trained_on >= cfg.num_train_examples:
                     break
         finally:
             elapsed_min = (time.time() - start) / 60
