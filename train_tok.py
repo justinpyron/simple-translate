@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import pandas as pd
+from transformers import PreTrainedTokenizerFast
 
 from tokenizers import (
     Tokenizer,
@@ -21,6 +22,11 @@ DEFAULT_DATA = Path(__file__).resolve().parent / "data" / "en-fr-subset1M.csv"
 MIN_FREQUENCY = 100
 CHUNK_SIZE_ROWS = 100_000
 
+# Special tokens for NMT.
+# The order here determines their IDs (PAD=0, BOS=1, EOS=2, UNK=3).
+SPECIAL_TOKENS = ["<PAD>", "<BOS>", "<EOS>", "<UNK>"]
+TOKEN_PAD, TOKEN_BOS, TOKEN_EOS, TOKEN_UNK = SPECIAL_TOKENS
+
 
 def _iter_corpus(csv_path: Path, lang: str):
     """Yield text chunks from a CSV file to avoid loading everything at once."""
@@ -32,9 +38,22 @@ def _iter_corpus(csv_path: Path, lang: str):
 def _make_tokenizer() -> Tokenizer:
     """Initialize a BPE tokenizer with ByteLevel pre-tokenization and NFD normalization."""
     tok = Tokenizer(models.BPE())
-    tok.normalizer = normalizers.Sequence([normalizers.NFD(), normalizers.Lowercase()])
+    tok.normalizer = normalizers.Sequence(
+        [normalizers.NFD(), normalizers.Lowercase(), normalizers.Strip()]
+    )
     tok.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
-    tok.post_processor = processors.ByteLevel(trim_offsets=False)
+
+    # TemplateProcessing handles automatic BOS/EOS wrapping for NMT.
+    # The IDs provided here MUST match the indices in the SPECIAL_TOKENS list,
+    # because BpeTrainer assigns IDs based on the order of the special_tokens list.
+    tok.post_processor = processors.TemplateProcessing(
+        single=f"{TOKEN_BOS} $A {TOKEN_EOS}",
+        special_tokens=[
+            (TOKEN_BOS, SPECIAL_TOKENS.index(TOKEN_BOS)),
+            (TOKEN_EOS, SPECIAL_TOKENS.index(TOKEN_EOS)),
+        ],
+    )
+
     tok.decoder = decoders.ByteLevel()
     return tok
 
@@ -81,22 +100,33 @@ def main() -> None:
     # --- Setup Output Paths ---
     start = time.perf_counter()
     out_dir = (args.tokenizers_dir / f"{args.lang}-vocab_{args.vocab_size}").resolve()
-    out_json = out_dir / "tokenizer.json"
 
     # --- Initialize and Train Tokenizer ---
     tok = _make_tokenizer()
     trainer = trainers.BpeTrainer(
-        vocab_size=args.vocab_size, min_frequency=MIN_FREQUENCY
+        vocab_size=args.vocab_size,
+        min_frequency=MIN_FREQUENCY,
+        special_tokens=SPECIAL_TOKENS,
     )
     tok.train_from_iterator(_iter_corpus(args.data, args.lang), trainer=trainer)
 
     # --- Save Artifacts ---
     out_dir.mkdir(parents=True, exist_ok=True)
-    tok.save(str(out_json))
+
+    # Wrap in PreTrainedTokenizerFast to attach special token meanings (bos_token, etc.)
+    # and save helper files (tokenizer_config.json, special_tokens_map.json) for flavors.py.
+    wrapped = PreTrainedTokenizerFast(
+        tokenizer_object=tok,
+        bos_token=TOKEN_BOS,
+        eos_token=TOKEN_EOS,
+        pad_token=TOKEN_PAD,
+        unk_token=TOKEN_UNK,
+    )
+    wrapped.save_pretrained(out_dir)
 
     # --- Final Report ---
     print(
-        f"Saved tokenizer to {out_json} ({(time.perf_counter() - start) / 60:.1f} min)"
+        f"Saved tokenizer to {out_dir} ({(time.perf_counter() - start) / 60:.1f} min)"
     )
 
 
