@@ -1,27 +1,42 @@
 """Modal-based inference server for SimpleTranslate model."""
 
+from pathlib import Path
+
 import modal
+
+from interfaces import TranslationDirection
+
+# =============================================================================
+# Deployment configuration
+# =============================================================================
+
+VOLUME_NAME = "simple-translate"
+VOL_MOUNT_PATH = Path("/data")
+FLAVOR = "small"
+TOKENIZER_EN = Path("tokenizers/en-vocab_1000")
+TOKENIZER_FR = Path("tokenizers/fr-vocab_1000")
+WEIGHTS_EN = Path("weights/small-en2fr-20260420T0410.pt")
+WEIGHTS_FR = Path("weights/small-fr2en-20260420T0411.pt")
 
 app = modal.App("simple-translate")
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
-        "torch==2.5.1",
-        "transformers==4.46.3",
-        "numpy==2.1.3",
-        "pydantic==2.10.4",
-        "fastapi==0.124.0",
+        "torch==2.11.0",
+        "transformers==5.5.4",
+        "pydantic==2.13.2",
+        "fastapi==0.136.0",
     )
     .add_local_python_source("interfaces")
-    .add_local_python_source("model_configs")
+    .add_local_python_source("flavors")
     .add_local_python_source("simple_translate")
 )
-volume = modal.Volume.from_name("simple-translate")
+volume = modal.Volume.from_name(VOLUME_NAME)
 
 
 @app.cls(
     image=image,
-    volumes={"/data": volume},
+    volumes={str(VOL_MOUNT_PATH): volume},
     cpu=1,
     scaledown_window=600,
 )
@@ -30,73 +45,86 @@ class Server:
 
     @modal.enter()
     def load_model(self):
-        """Load model and tokenizer on container startup."""
-        import torch
+        """Load tokenizers and both direction-specific models on container startup."""
         from transformers import PreTrainedTokenizerFast
 
-        from model_configs import model_configs
-        from simple_translate import SimpleTranslate
+        from flavors import FLAVORS
 
-        # Load tokenizer from volume
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(
-            "/data/tokenizer_1000/"
+        self.tok_en = PreTrainedTokenizerFast.from_pretrained(
+            VOL_MOUNT_PATH / TOKENIZER_EN
         )
-        # Load model from volume
-        self.model = SimpleTranslate(**model_configs)
-        self.model.load_state_dict(
-            torch.load(
-                "/data/model_for_app_cpu.pt", weights_only=True, map_location="cpu"
-            )
+        self.tok_fr = PreTrainedTokenizerFast.from_pretrained(
+            VOL_MOUNT_PATH / TOKENIZER_FR
         )
-        self.model.eval()
+        flavor = FLAVORS[FLAVOR]
+        self.models = {
+            "en2fr": flavor.load(
+                tokenizer_source=self.tok_en,
+                tokenizer_destination=self.tok_fr,
+                checkpoint=VOL_MOUNT_PATH / WEIGHTS_EN,
+            ),
+            "fr2en": flavor.load(
+                tokenizer_source=self.tok_fr,
+                tokenizer_destination=self.tok_en,
+                checkpoint=VOL_MOUNT_PATH / WEIGHTS_FR,
+            ),
+        }
+        for m in self.models.values():
+            m.eval()
 
     def translate(
         self,
         text_source: str,
+        direction: TranslationDirection,
         temperature: float | None = None,
         beams: int | None = None,
     ) -> str:
         """
-        Generate translation for a single input example.
+        Generate a translation for one input string.
 
         Args:
-            text_source: The English text to translate
-            temperature: Temperature for sampling (if using temperature-based generation)
-            beams: Number of beams for beam search (if using beam search)
+            text_source: Text in the source language for the chosen direction
+            direction: ``en2fr`` (English → French) or ``fr2en`` (French → English)
+            temperature: Sampling temperature when using temperature-based generation
+            beams: Beam width when using beam search
 
         Returns:
-            The translated French text
+            Translated text in the target language
         """
-        # Tokenize input
-        tokens_source = self.tokenizer(
+        model = self.models[direction]
+        tok_source, tok_destination = (
+            (self.tok_en, self.tok_fr)
+            if direction == "en2fr"
+            else (self.tok_fr, self.tok_en)
+        )
+
+        tokens_source = tok_source(
             text_source,
             truncation=True,
-            max_length=self.model.max_sequence_length,
+            max_length=model.max_sequence_length,
             return_attention_mask=False,
             return_token_type_ids=False,
             return_tensors="pt",
         )["input_ids"]
 
-        # Generate translation based on strategy
         if temperature is not None:
-            temperature = max(1e-3, temperature)  # Ensure temperature is positive
-            tokens_destination = self.model.generate_with_temp(
+            temperature = max(1e-3, temperature)
+            tokens_destination = model.generate_with_temp(
                 tokens_source, temperature=temperature
             )
         elif beams is not None:
-            tokens_destination = self.model.generate_with_beams(
+            tokens_destination = model.generate_with_beams(
                 tokens_source, beam_width=beams
             )
         else:
-            # Default to temperature-based with low temperature
-            tokens_destination = self.model.generate_with_temp(
+            tokens_destination = model.generate_with_temp(
                 tokens_source, temperature=0.1
             )
 
-        # Decode and return translation
-        translation = self.tokenizer.decode(
+        translation = tok_destination.decode(
             tokens_destination[0], skip_special_tokens=True
         )
+
         return translation
 
     @modal.asgi_app()
@@ -110,17 +138,9 @@ class Server:
 
         @server.post("/translate", response_model=TranslateResponse)
         def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
-            """
-            Translate English text to French.
-
-            Args:
-                request: Translation request with source text and generation parameters
-
-            Returns:
-                Translation response with the translated text
-            """
             translation = self.translate(
                 text_source=request.text_source,
+                direction=request.direction,
                 temperature=request.temperature,
                 beams=request.beams,
             )
