@@ -15,7 +15,7 @@ from torch.optim.lr_scheduler import LinearLR, SequentialLR
 from transformers import PreTrainedTokenizerFast
 
 import wandb
-from simple_translate import SimpleTranslate
+from architecture import SimpleTranslate
 
 WANDB_ENTITY = "pyron"
 WANDB_PROJECT = "simple-translate"

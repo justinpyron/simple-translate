@@ -7,7 +7,7 @@ The model uses an encoder-decoder transformer architecture inspired by _[Attenti
 ```
 ├── README.md                <- Overview
 ├── app.py                   <- Streamlit web app frontend
-├── simple_translate.py      <- Architecture of underlying transformer model
+├── architecture.py          <- Architecture of underlying transformer model
 ├── model_configs.py         <- Hyperparameters of the model
 ├── model_for_app.pt         <- Weights of the trained model used in the app
 ├── create_tokenizer.py      <- Trains a tokenizer

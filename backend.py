@@ -29,7 +29,7 @@ image = (
     )
     .add_local_python_source("schemas")
     .add_local_python_source("flavors")
-    .add_local_python_source("simple_translate")
+    .add_local_python_source("architecture")
 )
 volume = modal.Volume.from_name(VOLUME_NAME)
 

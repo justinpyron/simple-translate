@@ -31,7 +31,7 @@ image = (
         "pydantic",
         "tokenizers",
     )
-    .add_local_python_source("simple_translate", "trainer", "flavors")
+    .add_local_python_source("architecture", "trainer", "flavors")
 )
 
 volume = modal.Volume.from_name(VOL_NAME)
