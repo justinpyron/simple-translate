@@ -121,16 +121,12 @@ app.layout = dbc.Container(
                     width=6,
                 ),
                 dbc.Col(
-                    dcc.Loading(
-                        dbc.Textarea(
-                            id="target-output",
-                            placeholder="Translation will appear here",
-                            style={"height": "220px"},
-                            readOnly=True,
-                            className="mb-3",
-                        ),
-                        type="default",
-                        color="#2F5BFF",
+                    dbc.Textarea(
+                        id="target-output",
+                        placeholder="Translation will appear here",
+                        style={"height": "220px"},
+                        readOnly=True,
+                        className="mb-3",
                     ),
                     width=6,
                 ),

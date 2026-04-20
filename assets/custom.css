@@ -145,6 +145,13 @@ a:hover {
     transform: translateY(0);
 }
 
+/* Button loading state */
+.translate-button[data-dash-is-loading="true"] {
+    opacity: 0.7;
+    cursor: wait;
+    pointer-events: none;
+}
+
 /* Swap button — circular, neutral default, yellow on hover with a spin */
 .swap-button {
     width: 44px;
@@ -193,7 +200,36 @@ textarea.form-control {
     line-height: 1.5;
     box-shadow: 0 1px 2px rgba(11, 18, 32, 0.03);
     resize: vertical;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.3s ease;
+}
+
+/* Shimmer Loading State (Option 2)
+   Dash automatically adds [data-dash-is-loading="true"] to components being updated. */
+#target-output[data-dash-is-loading="true"] {
+    color: transparent !important;
+    background: linear-gradient(
+        90deg,
+        var(--st-surface) 25%,
+        #f2f2f0 50%,
+        var(--st-surface) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 4s infinite linear;
+    border-color: var(--st-border);
+    pointer-events: none;
+}
+
+#target-output[data-dash-is-loading="true"]::placeholder {
+    color: transparent !important;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
 }
 textarea.form-control::placeholder {
     color: var(--st-text-muted);
