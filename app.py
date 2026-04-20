@@ -59,7 +59,7 @@ def translate(
 
 app = Dash(
     __name__,
-    external_stylesheets=[dbc.themes.SLATE],
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
     title="Simple Translate 🌎",
 )
 

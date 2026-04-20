@@ -1,0 +1,191 @@
+/* ---------------------------------------------------------------
+   Simple Translate — "Editorial" theme
+   Palette: warm off-white + editorial blue + buttery gold accent
+   Typography: Geist Sans (UI) + Geist Mono (model output)
+   --------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
+:root {
+    /* Brand tokens */
+    --st-bg:            #FAFAF7;
+    --st-surface:       #FFFFFF;
+    --st-text:          #0B1220;
+    --st-text-muted:    #5B6473;
+    --st-border:        #ECECEC;
+    --st-divider:       #EDEEF1;
+    --st-primary:       #2F5BFF;
+    --st-primary-hover: #1E3FD8;
+    --st-primary-ring:  rgba(47, 91, 255, 0.15);
+    --st-accent:        #F5C451;
+    --st-accent-hover:  #EBB73A;
+
+    /* Bootstrap overrides */
+    --bs-primary:       #2F5BFF;
+    --bs-primary-rgb:   47, 91, 255;
+    --bs-body-bg:       #FAFAF7;
+    --bs-body-color:    #0B1220;
+    --bs-secondary-color: #5B6473;
+    --bs-border-color:  #ECECEC;
+    --bs-link-color:    #2F5BFF;
+    --bs-link-hover-color: #1E3FD8;
+}
+
+/* ------------------------------- Base ------------------------------- */
+
+html, body {
+    background-color: var(--st-bg);
+    color: var(--st-text);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Geist', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--st-text);
+}
+
+a {
+    color: var(--st-primary);
+    text-decoration: none;
+}
+a:hover {
+    color: var(--st-primary-hover);
+    text-decoration: underline;
+}
+
+.text-muted {
+    color: var(--st-text-muted) !important;
+}
+
+/* ------------------------------ Buttons ----------------------------- */
+
+.btn-primary {
+    background-color: var(--st-primary);
+    border-color: var(--st-primary);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary:focus-visible {
+    background-color: var(--st-primary-hover) !important;
+    border-color: var(--st-primary-hover) !important;
+    box-shadow: 0 0 0 3px var(--st-primary-ring) !important;
+}
+
+/* Swap button uses Bootstrap's "secondary" — remap to our yellow accent */
+.btn-secondary {
+    background-color: var(--st-accent);
+    border-color: var(--st-accent);
+    color: var(--st-text);
+    font-weight: 500;
+}
+.btn-secondary:hover,
+.btn-secondary:focus,
+.btn-secondary:active,
+.btn-secondary:focus-visible {
+    background-color: var(--st-accent-hover) !important;
+    border-color: var(--st-accent-hover) !important;
+    color: var(--st-text) !important;
+    box-shadow: 0 0 0 3px rgba(245, 196, 81, 0.35) !important;
+}
+
+.btn-link {
+    color: var(--st-text-muted);
+    text-decoration: none;
+}
+.btn-link:hover {
+    color: var(--st-primary);
+}
+
+/* ----------------------------- Textareas ---------------------------- */
+
+textarea.form-control {
+    background-color: var(--st-surface);
+    color: var(--st-text);
+    border: 1px solid var(--st-border);
+    font-family: 'Geist', sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+textarea.form-control::placeholder {
+    color: var(--st-text-muted);
+    opacity: 0.7;
+}
+textarea.form-control:focus {
+    background-color: var(--st-surface);
+    color: var(--st-text);
+    border-color: var(--st-primary);
+    box-shadow: 0 0 0 3px var(--st-primary-ring);
+}
+
+/* Model output gets Geist Mono to subtly signal "generated text" */
+#target-output {
+    font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.95rem;
+}
+
+/* ----------------------------- Accordion ---------------------------- */
+
+.accordion {
+    --bs-accordion-bg: var(--st-surface);
+    --bs-accordion-color: var(--st-text);
+    --bs-accordion-border-color: var(--st-border);
+    --bs-accordion-btn-color: var(--st-text);
+    --bs-accordion-btn-bg: var(--st-surface);
+    --bs-accordion-active-bg: var(--st-surface);
+    --bs-accordion-active-color: var(--st-primary);
+    --bs-accordion-btn-focus-border-color: var(--st-primary);
+    --bs-accordion-btn-focus-box-shadow: 0 0 0 3px var(--st-primary-ring);
+}
+.accordion-button:not(.collapsed) {
+    color: var(--st-primary);
+    background-color: var(--st-surface);
+    box-shadow: inset 0 -1px 0 var(--st-border);
+}
+
+/* ------------------------------- Card ------------------------------- */
+
+.card {
+    background-color: var(--st-surface);
+    border-color: var(--st-border);
+    color: var(--st-text);
+}
+.card.border-secondary {
+    border-color: var(--st-border) !important;
+}
+
+/* --------------------------- dcc.Slider ----------------------------- */
+
+.rc-slider-rail {
+    background-color: var(--st-divider);
+}
+.rc-slider-track {
+    background-color: var(--st-primary);
+}
+.rc-slider-handle {
+    border-color: var(--st-primary) !important;
+    background-color: var(--st-primary);
+    opacity: 1;
+}
+.rc-slider-handle:hover,
+.rc-slider-handle:focus,
+.rc-slider-handle-click-focused:focus {
+    border-color: var(--st-primary-hover) !important;
+    box-shadow: 0 0 0 5px var(--st-primary-ring) !important;
+}
+.rc-slider-dot-active {
+    border-color: var(--st-primary);
+}
+.rc-slider-mark-text {
+    color: var(--st-text-muted);
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 0.75rem;
+}
