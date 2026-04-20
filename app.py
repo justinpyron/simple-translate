@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import httpx
 from dash import Dash, Input, Output, State, dcc, html
 
-from interfaces import TranslateRequest, TranslateResponse, TranslationDirection
+from schemas import TranslateRequest, TranslateResponse, TranslationDirection
 
 SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"

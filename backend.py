@@ -4,7 +4,7 @@ from pathlib import Path
 
 import modal
 
-from interfaces import TranslationDirection
+from schemas import TranslationDirection
 
 # =============================================================================
 # Deployment configuration
@@ -27,7 +27,7 @@ image = (
         "pydantic==2.13.2",
         "fastapi==0.136.0",
     )
-    .add_local_python_source("interfaces")
+    .add_local_python_source("schemas")
     .add_local_python_source("flavors")
     .add_local_python_source("simple_translate")
 )
@@ -132,7 +132,7 @@ class Server:
         """Create and configure the FastAPI application."""
         from fastapi import FastAPI
 
-        from interfaces import TranslateRequest, TranslateResponse
+        from schemas import TranslateRequest, TranslateResponse
 
         server = FastAPI(title="SimpleTranslate API")
 
