@@ -84,7 +84,8 @@ class Server:
         Args:
             text_source: Text in the source language for the chosen direction
             direction: ``en2fr`` (English → French) or ``fr2en`` (French → English)
-            temperature: Sampling temperature when using temperature-based generation
+            temperature: Sampling temperature. ``None`` uses 0.1; values are
+                floored at 1e-3.
 
         Returns:
             Translated text in the target language
@@ -105,15 +106,14 @@ class Server:
             return_tensors="pt",
         )["input_ids"]
 
-        if temperature is not None:
-            temperature = max(1e-3, temperature)
-            tokens_destination = model.generate_with_temp(
-                tokens_source, temperature=temperature
-            )
-        else:
-            tokens_destination = model.generate_with_temp(
-                tokens_source, temperature=0.1
-            )
+        tokens_destination = model.generate_with_temp(
+            tokens_source,
+            temperature=(
+                0.1
+                if temperature is None
+                else max(1e-3, temperature)  # Ensure temp > 0
+            ),
+        )
 
         translation = tok_destination.decode(
             tokens_destination[0], skip_special_tokens=True
