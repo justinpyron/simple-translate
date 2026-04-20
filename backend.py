@@ -13,8 +13,8 @@ from interfaces import TranslationDirection
 VOLUME_NAME = "simple-translate"
 VOL_MOUNT_PATH = Path("/data")
 FLAVOR = "small"
-TOKENIZER_SOURCE_PATH = Path("tokenizers/en-vocab_1000")
-TOKENIZER_DESTINATION_PATH = Path("tokenizers/fr-vocab_1000")
+TOKENIZER_EN = Path("tokenizers/en-vocab_1000")
+TOKENIZER_FR = Path("tokenizers/fr-vocab_1000")
 WEIGHTS_EN = Path("weights_en.pt")
 WEIGHTS_FR = Path("weights_fr.pt")
 
@@ -51,28 +51,22 @@ class Server:
 
         from flavors import FLAVORS
 
-        tokenizer_en = PreTrainedTokenizerFast.from_pretrained(
-            VOL_MOUNT_PATH / TOKENIZER_SOURCE_PATH
+        self.tok_en = PreTrainedTokenizerFast.from_pretrained(
+            VOL_MOUNT_PATH / TOKENIZER_EN
         )
-        tokenizer_fr = PreTrainedTokenizerFast.from_pretrained(
-            VOL_MOUNT_PATH / TOKENIZER_DESTINATION_PATH
+        self.tok_fr = PreTrainedTokenizerFast.from_pretrained(
+            VOL_MOUNT_PATH / TOKENIZER_FR
         )
-
-        if FLAVOR not in FLAVORS:
-            raise ValueError(f"Unknown flavor {FLAVOR!r}. Available: {sorted(FLAVORS)}")
-
         flavor = FLAVORS[FLAVOR]
-        self.tokenizer_en = tokenizer_en
-        self.tokenizer_fr = tokenizer_fr
         self.models = {
             "en2fr": flavor.load(
-                tokenizer_en,
-                tokenizer_fr,
+                tokenizer_source=self.tok_en,
+                tokenizer_destination=self.tok_fr,
                 checkpoint=VOL_MOUNT_PATH / WEIGHTS_EN,
             ),
             "fr2en": flavor.load(
-                tokenizer_fr,
-                tokenizer_en,
+                tokenizer_source=self.tok_fr,
+                tokenizer_destination=self.tok_en,
                 checkpoint=VOL_MOUNT_PATH / WEIGHTS_FR,
             ),
         }
@@ -99,13 +93,13 @@ class Server:
             Translated text in the target language
         """
         model = self.models[direction]
-        tokenizer_source, tokenizer_destination = (
-            (self.tokenizer_en, self.tokenizer_fr)
+        tok_source, tok_destination = (
+            (self.tok_en, self.tok_fr)
             if direction == "en2fr"
-            else (self.tokenizer_fr, self.tokenizer_en)
+            else (self.tok_fr, self.tok_en)
         )
 
-        tokens_source = tokenizer_source(
+        tokens_source = tok_source(
             text_source,
             truncation=True,
             max_length=model.max_sequence_length,
@@ -128,7 +122,7 @@ class Server:
                 tokens_source, temperature=0.1
             )
 
-        translation = tokenizer_destination.decode(
+        translation = tok_destination.decode(
             tokens_destination[0], skip_special_tokens=True
         )
 
