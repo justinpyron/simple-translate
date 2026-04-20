@@ -66,16 +66,28 @@ app = Dash(
 app.layout = dbc.Container(
     [
         dcc.Store(id="direction-store", data="en2fr"),
-        html.H1("🌎 Simple Translate", className="app-title"),
-        dbc.Accordion(
+        html.Div("Simple Translate 🌎", className="app-title"),
+        html.Div(
             [
-                dbc.AccordionItem(
-                    dcc.Markdown(WHAT_IS_THIS_APP, link_target="_blank"),
-                    title="What is this app?",
-                )
+                html.Button(
+                    [
+                        html.Span("ℹ", className="info-icon"),
+                        html.Span("About the Project"),
+                    ],
+                    id="about-toggle",
+                    n_clicks=0,
+                    className="secondary-pill",
+                ),
+                dbc.Collapse(
+                    html.Div(
+                        dcc.Markdown(WHAT_IS_THIS_APP, link_target="_blank"),
+                        className="about-content",
+                    ),
+                    id="about-collapse",
+                    is_open=False,
+                ),
             ],
-            start_collapsed=True,
-            className="mb-4 about-accordion",
+            className="about-wrapper",
         ),
         dbc.Row(
             [
@@ -134,7 +146,13 @@ app.layout = dbc.Container(
         ),
         html.Div(
             dbc.Button(
-                "Translate",
+                dcc.Loading(
+                    html.Span("Translate", id="translate-btn-text"),
+                    id="translate-btn-loading",
+                    type="dot",
+                    color="#ffffff",
+                    overlay_style={"visibility": "visible", "filter": "blur(0)"},
+                ),
                 id="translate-btn",
                 color="primary",
                 size="lg",
@@ -151,14 +169,14 @@ app.layout = dbc.Container(
                     ],
                     id="settings-toggle",
                     n_clicks=0,
-                    className="settings-toggle",
+                    className="secondary-pill",
                 ),
                 dbc.Collapse(
                     html.Div(
                         [
                             html.Label(
                                 "Temperature",
-                                className="settings-label",
+                                className="lang-label d-block mb-2 text-center",
                             ),
                             dcc.Slider(
                                 id="temp-slider",
@@ -185,6 +203,18 @@ app.layout = dbc.Container(
 
 
 @app.callback(
+    Output("about-collapse", "is_open"),
+    Output("about-toggle", "className"),
+    Input("about-toggle", "n_clicks"),
+    State("about-collapse", "is_open"),
+)
+def toggle_about(n_clicks, is_open):
+    new_is_open = (not is_open) if n_clicks else is_open
+    class_name = "secondary-pill active" if new_is_open else "secondary-pill"
+    return new_is_open, class_name
+
+
+@app.callback(
     Output("settings-collapse", "is_open"),
     Output("settings-toggle", "className"),
     Input("settings-toggle", "n_clicks"),
@@ -192,7 +222,7 @@ app.layout = dbc.Container(
 )
 def toggle_settings(n_clicks, is_open):
     new_is_open = (not is_open) if n_clicks else is_open
-    class_name = "settings-toggle active" if new_is_open else "settings-toggle"
+    class_name = "secondary-pill active" if new_is_open else "secondary-pill"
     return new_is_open, class_name
 
 
