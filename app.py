@@ -70,7 +70,7 @@ app.layout = dbc.Container(
         dbc.Accordion(
             [
                 dbc.AccordionItem(
-                    dcc.Markdown(WHAT_IS_THIS_APP),
+                    dcc.Markdown(WHAT_IS_THIS_APP, link_target="_blank"),
                     title="What is this app?",
                 )
             ],
