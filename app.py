@@ -66,48 +66,44 @@ app = Dash(
 app.layout = dbc.Container(
     [
         dcc.Store(id="direction-store", data="en2fr"),
-        dbc.Row(
-            dbc.Col(
-                html.H1("Simple Translate 🌎", className="text-center my-4"),
-                width=12,
-            )
-        ),
-        dbc.Row(
-            dbc.Col(
-                dbc.Accordion(
-                    [
-                        dbc.AccordionItem(
-                            dcc.Markdown(WHAT_IS_THIS_APP),
-                            title="What is this app?",
-                        )
-                    ],
-                    start_collapsed=True,
-                    className="mb-4",
-                ),
-                width={"size": 8, "offset": 2},
-            )
+        html.H1("🌎 Simple Translate", className="app-title"),
+        dbc.Accordion(
+            [
+                dbc.AccordionItem(
+                    dcc.Markdown(WHAT_IS_THIS_APP),
+                    title="What is this app?",
+                )
+            ],
+            start_collapsed=True,
+            className="mb-4 about-accordion",
         ),
         dbc.Row(
             [
                 dbc.Col(
-                    html.H3(
-                        "English 🏴󠁧󠁢󠁥󠁮󠁧󠁿", id="source-label", className="text-center"
+                    html.Div(
+                        "English 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+                        id="source-label",
+                        className="lang-label",
                     ),
                     width=5,
                 ),
                 dbc.Col(
-                    dbc.Button(
+                    html.Button(
                         "⇄",
                         id="swap-btn",
-                        color="secondary",
-                        className="w-100",
-                        size="lg",
+                        className="swap-button",
+                        n_clicks=0,
+                        title="Swap languages",
                     ),
                     width=2,
-                    className="d-flex align-items-end",
+                    className="d-flex justify-content-center align-items-center",
                 ),
                 dbc.Col(
-                    html.H3("French 🇫🇷", id="target-label", className="text-center"),
+                    html.Div(
+                        "French 🇫🇷",
+                        id="target-label",
+                        className="lang-label",
+                    ),
                     width=5,
                 ),
             ],
@@ -119,73 +115,73 @@ app.layout = dbc.Container(
                     dbc.Textarea(
                         id="source-input",
                         placeholder="Enter English text here",
-                        style={"height": "200px"},
+                        style={"height": "220px"},
                         className="mb-3",
                     ),
                     width=6,
                 ),
                 dbc.Col(
-                    dbc.Textarea(
-                        id="target-output",
-                        placeholder="Translation will appear here",
-                        style={"height": "200px"},
-                        readOnly=True,
-                        className="mb-3",
+                    dcc.Loading(
+                        dbc.Textarea(
+                            id="target-output",
+                            placeholder="Translation will appear here",
+                            style={"height": "220px"},
+                            readOnly=True,
+                            className="mb-3",
+                        ),
+                        type="default",
+                        color="#2F5BFF",
                     ),
                     width=6,
                 ),
             ]
         ),
-        dbc.Row(
-            dbc.Col(
-                dbc.Button(
-                    "Translate",
-                    id="translate-btn",
-                    color="primary",
-                    size="lg",
-                    className="w-100 mb-3",
-                ),
-                width={"size": 6, "offset": 3},
-            )
+        html.Div(
+            dbc.Button(
+                "Translate",
+                id="translate-btn",
+                color="primary",
+                size="lg",
+                className="translate-button",
+            ),
+            className="translate-button-row",
         ),
-        dbc.Row(
-            dbc.Col(
-                [
-                    dbc.Button(
-                        "Settings",
-                        id="settings-toggle",
-                        color="link",
-                        size="sm",
-                        className="p-0 text-muted",
-                    ),
-                    dbc.Collapse(
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    html.Label("Temperature", className="small mb-1"),
-                                    dcc.Slider(
-                                        id="temp-slider",
-                                        min=0.0,
-                                        max=1.0,
-                                        step=0.05,
-                                        value=0.1,
-                                        marks={i / 10: str(i / 10) for i in range(11)},
-                                    ),
-                                ]
+        html.Div(
+            [
+                dbc.Button(
+                    "Settings",
+                    id="settings-toggle",
+                    color="link",
+                    size="sm",
+                    className="settings-toggle",
+                ),
+                dbc.Collapse(
+                    html.Div(
+                        [
+                            html.Label(
+                                "Temperature",
+                                className="settings-label",
                             ),
-                            className="mt-2 border-secondary",
-                        ),
-                        id="settings-collapse",
-                        is_open=False,
+                            dcc.Slider(
+                                id="temp-slider",
+                                min=0.0,
+                                max=1.0,
+                                step=0.05,
+                                value=0.1,
+                                marks={i / 10: str(i / 10) for i in range(11)},
+                            ),
+                        ],
+                        className="settings-inline",
                     ),
-                ],
-                width={"size": 4, "offset": 4},
-                className="text-center",
-            )
+                    id="settings-collapse",
+                    is_open=False,
+                ),
+            ],
+            className="settings-wrapper",
         ),
     ],
     fluid=True,
-    className="px-5 py-3",
+    className="app-container",
 )
 
 

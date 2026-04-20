@@ -63,6 +63,36 @@ a:hover {
     color: var(--st-text-muted) !important;
 }
 
+/* ---------------------------- Layout frame -------------------------- */
+
+.app-container {
+    max-width: 900px !important;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 3rem;
+}
+
+/* ----------------------------- App title ---------------------------- */
+
+.app-title {
+    text-align: center;
+    font-size: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin-top: 2rem;
+    margin-bottom: 1.75rem;
+}
+
+/* --------------------------- Language label ------------------------- */
+
+.lang-label {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--st-text-muted);
+}
+
 /* ------------------------------ Buttons ----------------------------- */
 
 .btn-primary {
@@ -80,23 +110,6 @@ a:hover {
     box-shadow: 0 0 0 3px var(--st-primary-ring) !important;
 }
 
-/* Swap button uses Bootstrap's "secondary" — remap to our yellow accent */
-.btn-secondary {
-    background-color: var(--st-accent);
-    border-color: var(--st-accent);
-    color: var(--st-text);
-    font-weight: 500;
-}
-.btn-secondary:hover,
-.btn-secondary:focus,
-.btn-secondary:active,
-.btn-secondary:focus-visible {
-    background-color: var(--st-accent-hover) !important;
-    border-color: var(--st-accent-hover) !important;
-    color: var(--st-text) !important;
-    box-shadow: 0 0 0 3px rgba(245, 196, 81, 0.35) !important;
-}
-
 .btn-link {
     color: var(--st-text-muted);
     text-decoration: none;
@@ -105,15 +118,77 @@ a:hover {
     color: var(--st-primary);
 }
 
+/* Translate primary CTA — fixed width, centered, soft blue shadow */
+.translate-button-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+.translate-button {
+    min-width: 220px;
+    padding: 0.6rem 1.75rem !important;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(47, 91, 255, 0.18);
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.translate-button:hover {
+    box-shadow: 0 6px 16px rgba(47, 91, 255, 0.24);
+    transform: translateY(-1px);
+}
+.translate-button:active {
+    transform: translateY(0);
+}
+
+/* Swap button — circular, neutral default, yellow on hover with a spin */
+.swap-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    line-height: 1;
+    background-color: var(--st-surface);
+    border: 1px solid var(--st-border);
+    color: var(--st-text);
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.04);
+    cursor: pointer;
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                box-shadow 0.2s ease,
+                transform 0.35s ease;
+    font-family: 'Geist', sans-serif;
+}
+.swap-button:hover,
+.swap-button:focus {
+    background-color: var(--st-accent);
+    border-color: var(--st-accent);
+    color: var(--st-text);
+    box-shadow: 0 0 0 4px rgba(245, 196, 81, 0.28);
+    transform: rotate(180deg);
+    outline: none;
+}
+.swap-button:active {
+    transform: rotate(180deg) scale(0.95);
+}
+
 /* ----------------------------- Textareas ---------------------------- */
 
 textarea.form-control {
     background-color: var(--st-surface);
     color: var(--st-text);
     border: 1px solid var(--st-border);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
     font-family: 'Geist', sans-serif;
     font-size: 1rem;
     line-height: 1.5;
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.03);
+    resize: vertical;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 textarea.form-control::placeholder {
     color: var(--st-text-muted);
@@ -144,11 +219,26 @@ textarea.form-control:focus {
     --bs-accordion-active-color: var(--st-primary);
     --bs-accordion-btn-focus-border-color: var(--st-primary);
     --bs-accordion-btn-focus-box-shadow: 0 0 0 3px var(--st-primary-ring);
+    --bs-accordion-border-radius: 12px;
+    --bs-accordion-inner-border-radius: 12px;
 }
 .accordion-button:not(.collapsed) {
     color: var(--st-primary);
     background-color: var(--st-surface);
     box-shadow: inset 0 -1px 0 var(--st-border);
+}
+.about-accordion .accordion-button {
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+}
+.about-accordion .accordion-body {
+    font-size: 0.92rem;
+    color: var(--st-text-muted);
+    line-height: 1.6;
+}
+.about-accordion .accordion-body a {
+    color: var(--st-primary);
 }
 
 /* ------------------------------- Card ------------------------------- */
@@ -157,9 +247,41 @@ textarea.form-control:focus {
     background-color: var(--st-surface);
     border-color: var(--st-border);
     color: var(--st-text);
+    border-radius: 12px;
 }
-.card.border-secondary {
-    border-color: var(--st-border) !important;
+
+/* ------------------------------ Settings ---------------------------- */
+
+.settings-wrapper {
+    margin-top: 0.75rem;
+    text-align: center;
+}
+.settings-toggle {
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase;
+    color: var(--st-text-muted) !important;
+    padding: 0.25rem 0.5rem !important;
+}
+.settings-toggle:hover {
+    color: var(--st-primary) !important;
+    text-decoration: none !important;
+}
+.settings-inline {
+    max-width: 460px;
+    margin: 0.75rem auto 0;
+    padding: 0.5rem 0.25rem 0;
+    text-align: left;
+}
+.settings-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--st-text-muted);
+    margin-bottom: 0.5rem;
 }
 
 /* --------------------------- dcc.Slider ----------------------------- */
