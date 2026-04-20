@@ -148,11 +148,13 @@ app.layout = dbc.Container(
         ),
         html.Div(
             [
-                dbc.Button(
-                    "Settings",
+                html.Button(
+                    [
+                        html.Span("⚙", className="gear"),
+                        html.Span("Settings"),
+                    ],
                     id="settings-toggle",
-                    color="link",
-                    size="sm",
+                    n_clicks=0,
                     className="settings-toggle",
                 ),
                 dbc.Collapse(
@@ -187,13 +189,14 @@ app.layout = dbc.Container(
 
 @app.callback(
     Output("settings-collapse", "is_open"),
+    Output("settings-toggle", "className"),
     Input("settings-toggle", "n_clicks"),
     State("settings-collapse", "is_open"),
 )
 def toggle_settings(n_clicks, is_open):
-    if n_clicks:
-        return not is_open
-    return is_open
+    new_is_open = (not is_open) if n_clicks else is_open
+    class_name = "settings-toggle active" if new_is_open else "settings-toggle"
+    return new_is_open, class_name
 
 
 @app.callback(
