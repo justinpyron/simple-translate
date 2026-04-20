@@ -1,3 +1,8 @@
+"""
+Shuffles and splits large CSV files into training and validation sets.
+Uses a memory-efficient two-pass indexing approach to handle files
+that exceed available RAM.
+"""
 import argparse
 import os
 import random
