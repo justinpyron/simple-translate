@@ -15,18 +15,17 @@ VOL_MOUNT_PATH = Path("/data")
 FLAVOR = "small"
 TOKENIZER_EN = Path("tokenizers/en-vocab_1000")
 TOKENIZER_FR = Path("tokenizers/fr-vocab_1000")
-WEIGHTS_EN = Path("weights_en.pt")
-WEIGHTS_FR = Path("weights_fr.pt")
+WEIGHTS_EN = Path("weights/small-en2fr-20260420T0410.pt")
+WEIGHTS_FR = Path("weights/small-fr2en-20260420T0411.pt")
 
 app = modal.App("simple-translate")
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
-        "torch==2.5.1",
-        "transformers==4.46.3",
-        "numpy==2.1.3",
-        "pydantic==2.10.4",
-        "fastapi==0.124.0",
+        "torch==2.11.0",
+        "transformers==5.5.4",
+        "pydantic==2.13.2",
+        "fastapi==0.136.0",
     )
     .add_local_python_source("interfaces")
     .add_local_python_source("flavors")
