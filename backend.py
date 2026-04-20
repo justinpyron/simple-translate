@@ -4,8 +4,10 @@ from pathlib import Path
 
 import modal
 
+from interfaces import TranslationDirection
+
 # =============================================================================
-# Deployment configuration (paths below are relative to VOL_MOUNT_PATH)
+# Deployment configuration
 # =============================================================================
 
 VOLUME_NAME = "simple-translate"
@@ -13,7 +15,8 @@ VOL_MOUNT_PATH = Path("/data")
 FLAVOR = "small"
 TOKENIZER_SOURCE_PATH = Path("tokenizers/en-vocab_1000")
 TOKENIZER_DESTINATION_PATH = Path("tokenizers/fr-vocab_1000")
-CHECKPOINT_PATH = Path("model_for_app_cpu.pt")
+WEIGHTS_EN = Path("weights_en.pt")
+WEIGHTS_FR = Path("weights_fr.pt")
 
 app = modal.App("simple-translate")
 image = (
@@ -43,68 +46,92 @@ class Server:
 
     @modal.enter()
     def load_model(self):
-        """Load model and tokenizers on container startup."""
+        """Load tokenizers and both direction-specific models on container startup."""
         from transformers import PreTrainedTokenizerFast
 
         from flavors import FLAVORS
 
-        self.tokenizer_source = PreTrainedTokenizerFast.from_pretrained(
+        tokenizer_en = PreTrainedTokenizerFast.from_pretrained(
             VOL_MOUNT_PATH / TOKENIZER_SOURCE_PATH
         )
-        self.tokenizer_destination = PreTrainedTokenizerFast.from_pretrained(
+        tokenizer_fr = PreTrainedTokenizerFast.from_pretrained(
             VOL_MOUNT_PATH / TOKENIZER_DESTINATION_PATH
         )
 
-        self.model = FLAVORS[FLAVOR].load(
-            self.tokenizer_source,
-            self.tokenizer_destination,
-            checkpoint=VOL_MOUNT_PATH / CHECKPOINT_PATH,
-        )
-        self.model.eval()
+        if FLAVOR not in FLAVORS:
+            raise ValueError(f"Unknown flavor {FLAVOR!r}. Available: {sorted(FLAVORS)}")
+
+        flavor = FLAVORS[FLAVOR]
+        self.tokenizer_en = tokenizer_en
+        self.tokenizer_fr = tokenizer_fr
+        self.models = {
+            "en2fr": flavor.load(
+                tokenizer_en,
+                tokenizer_fr,
+                checkpoint=VOL_MOUNT_PATH / WEIGHTS_EN,
+            ),
+            "fr2en": flavor.load(
+                tokenizer_fr,
+                tokenizer_en,
+                checkpoint=VOL_MOUNT_PATH / WEIGHTS_FR,
+            ),
+        }
+        for m in self.models.values():
+            m.eval()
 
     def translate(
         self,
         text_source: str,
+        direction: TranslationDirection,
         temperature: float | None = None,
         beams: int | None = None,
     ) -> str:
         """
-        Generate translation for a single input example.
+        Generate a translation for one input string.
 
         Args:
-            text_source: Source-language text to translate
-            temperature: Temperature for sampling (if using temperature-based generation)
-            beams: Number of beams for beam search (if using beam search)
+            text_source: Text in the source language for the chosen direction
+            direction: ``en2fr`` (English → French) or ``fr2en`` (French → English)
+            temperature: Sampling temperature when using temperature-based generation
+            beams: Beam width when using beam search
 
         Returns:
-            Translated text in the destination language
+            Translated text in the target language
         """
-        tokens_source = self.tokenizer_source(
+        model = self.models[direction]
+        tokenizer_source, tokenizer_destination = (
+            (self.tokenizer_en, self.tokenizer_fr)
+            if direction == "en2fr"
+            else (self.tokenizer_fr, self.tokenizer_en)
+        )
+
+        tokens_source = tokenizer_source(
             text_source,
             truncation=True,
-            max_length=self.model.max_sequence_length,
+            max_length=model.max_sequence_length,
             return_attention_mask=False,
             return_token_type_ids=False,
             return_tensors="pt",
         )["input_ids"]
 
         if temperature is not None:
-            temperature = max(1e-3, temperature)  # Ensure temperature is positive
-            tokens_destination = self.model.generate_with_temp(
+            temperature = max(1e-3, temperature)
+            tokens_destination = model.generate_with_temp(
                 tokens_source, temperature=temperature
             )
         elif beams is not None:
-            tokens_destination = self.model.generate_with_beams(
+            tokens_destination = model.generate_with_beams(
                 tokens_source, beam_width=beams
             )
         else:
-            tokens_destination = self.model.generate_with_temp(
+            tokens_destination = model.generate_with_temp(
                 tokens_source, temperature=0.1
             )
 
-        translation = self.tokenizer_destination.decode(
+        translation = tokenizer_destination.decode(
             tokens_destination[0], skip_special_tokens=True
         )
+
         return translation
 
     @modal.asgi_app()
@@ -118,17 +145,9 @@ class Server:
 
         @server.post("/translate", response_model=TranslateResponse)
         def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
-            """
-            Translate source text using the loaded model.
-
-            Args:
-                request: Translation request with source text and generation parameters
-
-            Returns:
-                Translation response with the translated text
-            """
             translation = self.translate(
                 text_source=request.text_source,
+                direction=request.direction,
                 temperature=request.temperature,
                 beams=request.beams,
             )
