@@ -1,6 +1,19 @@
 """Modal-based inference server for SimpleTranslate model."""
 
+from pathlib import Path
+
 import modal
+
+# =============================================================================
+# Deployment configuration (paths below are relative to VOL_MOUNT_PATH)
+# =============================================================================
+
+VOLUME_NAME = "simple-translate"
+VOL_MOUNT_PATH = Path("/data")
+FLAVOR = "small"
+TOKENIZER_SOURCE_PATH = Path("tokenizers/en-vocab_1000")
+TOKENIZER_DESTINATION_PATH = Path("tokenizers/fr-vocab_1000")
+CHECKPOINT_PATH = Path("model_for_app_cpu.pt")
 
 app = modal.App("simple-translate")
 image = (
@@ -13,15 +26,15 @@ image = (
         "fastapi==0.124.0",
     )
     .add_local_python_source("interfaces")
-    .add_local_python_source("model_configs")
+    .add_local_python_source("flavors")
     .add_local_python_source("simple_translate")
 )
-volume = modal.Volume.from_name("simple-translate")
+volume = modal.Volume.from_name(VOLUME_NAME)
 
 
 @app.cls(
     image=image,
-    volumes={"/data": volume},
+    volumes={str(VOL_MOUNT_PATH): volume},
     cpu=1,
     scaledown_window=600,
 )
@@ -30,23 +43,22 @@ class Server:
 
     @modal.enter()
     def load_model(self):
-        """Load model and tokenizer on container startup."""
-        import torch
+        """Load model and tokenizers on container startup."""
         from transformers import PreTrainedTokenizerFast
 
-        from model_configs import model_configs
-        from simple_translate import SimpleTranslate
+        from flavors import FLAVORS
 
-        # Load tokenizer from volume
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(
-            "/data/tokenizer_1000/"
+        self.tokenizer_source = PreTrainedTokenizerFast.from_pretrained(
+            VOL_MOUNT_PATH / TOKENIZER_SOURCE_PATH
         )
-        # Load model from volume
-        self.model = SimpleTranslate(**model_configs)
-        self.model.load_state_dict(
-            torch.load(
-                "/data/model_for_app_cpu.pt", weights_only=True, map_location="cpu"
-            )
+        self.tokenizer_destination = PreTrainedTokenizerFast.from_pretrained(
+            VOL_MOUNT_PATH / TOKENIZER_DESTINATION_PATH
+        )
+
+        self.model = FLAVORS[FLAVOR].load(
+            self.tokenizer_source,
+            self.tokenizer_destination,
+            checkpoint=VOL_MOUNT_PATH / CHECKPOINT_PATH,
         )
         self.model.eval()
 
@@ -60,15 +72,14 @@ class Server:
         Generate translation for a single input example.
 
         Args:
-            text_source: The English text to translate
+            text_source: Source-language text to translate
             temperature: Temperature for sampling (if using temperature-based generation)
             beams: Number of beams for beam search (if using beam search)
 
         Returns:
-            The translated French text
+            Translated text in the destination language
         """
-        # Tokenize input
-        tokens_source = self.tokenizer(
+        tokens_source = self.tokenizer_source(
             text_source,
             truncation=True,
             max_length=self.model.max_sequence_length,
@@ -77,7 +88,6 @@ class Server:
             return_tensors="pt",
         )["input_ids"]
 
-        # Generate translation based on strategy
         if temperature is not None:
             temperature = max(1e-3, temperature)  # Ensure temperature is positive
             tokens_destination = self.model.generate_with_temp(
@@ -88,13 +98,11 @@ class Server:
                 tokens_source, beam_width=beams
             )
         else:
-            # Default to temperature-based with low temperature
             tokens_destination = self.model.generate_with_temp(
                 tokens_source, temperature=0.1
             )
 
-        # Decode and return translation
-        translation = self.tokenizer.decode(
+        translation = self.tokenizer_destination.decode(
             tokens_destination[0], skip_special_tokens=True
         )
         return translation
@@ -111,7 +119,7 @@ class Server:
         @server.post("/translate", response_model=TranslateResponse)
         def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
             """
-            Translate English text to French.
+            Translate source text using the loaded model.
 
             Args:
                 request: Translation request with source text and generation parameters
