@@ -66,6 +66,16 @@ FLAVORS: dict[str, Flavor] = {
         dropout=0.1,
         num_blocks=4,
     ),
+    "small": Flavor(
+        name="small",
+        max_sequence_length=256,
+        dim_embedding=128,
+        dim_head=16,
+        num_heads=8,
+        dim_mlp=256,
+        dropout=0.1,
+        num_blocks=8,
+    ),
     "base": Flavor(
         name="base",
         max_sequence_length=256,
