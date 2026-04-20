@@ -77,7 +77,6 @@ class Server:
         text_source: str,
         direction: TranslationDirection,
         temperature: float | None = None,
-        beams: int | None = None,
     ) -> str:
         """
         Generate a translation for one input string.
@@ -86,7 +85,6 @@ class Server:
             text_source: Text in the source language for the chosen direction
             direction: ``en2fr`` (English → French) or ``fr2en`` (French → English)
             temperature: Sampling temperature when using temperature-based generation
-            beams: Beam width when using beam search
 
         Returns:
             Translated text in the target language
@@ -111,10 +109,6 @@ class Server:
             temperature = max(1e-3, temperature)
             tokens_destination = model.generate_with_temp(
                 tokens_source, temperature=temperature
-            )
-        elif beams is not None:
-            tokens_destination = model.generate_with_beams(
-                tokens_source, beam_width=beams
             )
         else:
             tokens_destination = model.generate_with_temp(
@@ -142,7 +136,6 @@ class Server:
                 text_source=request.text_source,
                 direction=request.direction,
                 temperature=request.temperature,
-                beams=request.beams,
             )
             return TranslateResponse(translation=translation)
 

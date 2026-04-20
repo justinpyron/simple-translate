@@ -38,7 +38,6 @@ def translate(
         text_source=text_source,
         direction=direction,
         temperature=temperature,
-        beams=None,  # Beam search is removed per requirements
     )
 
     try:
