@@ -8,3 +8,4 @@ __pycache__/
 trainer_launch.sh
 wandb/
 tokenizers/
+trainer_job.sh

@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # See .github/workflows/build-and-push-image.yml.
 
 # Copy only the necessary application files
-COPY app.py interfaces.py ./
+COPY app.py schemas.py ./
 
 # Expose port 8080 for Cloud Run
 EXPOSE 8080

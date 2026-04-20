@@ -1,7 +1,12 @@
-import time
+"""Train a Hugging Face `tokenizers` BPE tokenizer for English or French text."""
 
-import click
+import argparse
+import time
+from pathlib import Path
+
 import pandas as pd
+from transformers import PreTrainedTokenizerFast
+
 from tokenizers import (
     Tokenizer,
     decoders,
@@ -11,77 +16,116 @@ from tokenizers import (
     processors,
     trainers,
 )
-from transformers import PreTrainedTokenizerFast
 
-TOKEN_BOS = "<BOS>"
-TOKEN_EOS = "<EOS>"
-TOKEN_PAD = "<PAD>"
+TOKENIZERS_DIR = Path("tokenizers")
+DEFAULT_DATA = Path("data/en-fr-subset10M-shuffled.csv")
+MIN_FREQUENCY = 100
+CHUNK_SIZE_ROWS = 100_000
 
-
-def get_corpus_generator(
-    corpus_filename: str,
-    chunksize: int,
-):
-    for chunk in pd.read_csv(corpus_filename, chunksize=chunksize):
-        chunk = chunk.dropna(how="any", axis=0)
-        en = chunk["en"].values.tolist()
-        fr = chunk["fr"].values.tolist()
-        corpus = " ".join(en + fr)
-        yield corpus
+# Special tokens for Neural Machine Translation (NMT).
+# The order here determines their IDs (PAD=0, BOS=1, EOS=2, UNK=3).
+SPECIAL_TOKENS = ["<PAD>", "<BOS>", "<EOS>", "<UNK>"]
+TOKEN_PAD, TOKEN_BOS, TOKEN_EOS, TOKEN_UNK = SPECIAL_TOKENS
 
 
-def create_tokenizer(
-    corpus_filename: str,
-    vocab_size: int,
-) -> None:
-    tokenizer = Tokenizer(models.BPE())
-    tokenizer.normalizer = normalizers.Sequence(
-        [
-            normalizers.NFD(),
-            normalizers.Lowercase(),
-            normalizers.Strip(),
-        ]
-    )
-    tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
-    tokenizer.post_processor = processors.TemplateProcessing(
+def _iter_corpus(csv_path: Path, lang: str):
+    """Yield text chunks from a CSV file to avoid loading everything at once."""
+    col = "en" if lang == "en" else "fr"
+    for df_chunk in pd.read_csv(csv_path, chunksize=CHUNK_SIZE_ROWS):
+        yield "\n".join(df_chunk[col].dropna().str.strip().astype(str))
+
+
+def _make_tokenizer() -> Tokenizer:
+    """Initialize a BPE tokenizer with ByteLevel pre-tokenization and NFD normalization."""
+    tok = Tokenizer(models.BPE())
+    tok.normalizer = normalizers.Sequence([normalizers.NFD(), normalizers.Strip()])
+    tok.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+
+    # TemplateProcessing handles automatic BOS/EOS wrapping for NMT.
+    # The IDs provided here MUST match the indices in the SPECIAL_TOKENS list,
+    # because BpeTrainer assigns IDs based on the order of the special_tokens list.
+    tok.post_processor = processors.TemplateProcessing(
         single=f"{TOKEN_BOS} $A {TOKEN_EOS}",
-        special_tokens=[(TOKEN_BOS, 0), (TOKEN_EOS, 1)],
+        special_tokens=[
+            (TOKEN_BOS, SPECIAL_TOKENS.index(TOKEN_BOS)),
+            (TOKEN_EOS, SPECIAL_TOKENS.index(TOKEN_EOS)),
+        ],
     )
-    tokenizer.decoder = decoders.ByteLevel()
+
+    tok.decoder = decoders.ByteLevel()
+    return tok
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Train a BPE tokenizer on the English or French column of a CSV."
+    )
+    parser.add_argument(
+        "--lang",
+        "-l",
+        required=True,
+        choices=["en", "fr"],
+        help="Language to train on ('en' or 'fr').",
+    )
+    parser.add_argument(
+        "--vocab-size",
+        "-v",
+        type=int,
+        required=True,
+        help="Target vocabulary size.",
+    )
+    parser.add_argument(
+        "--data",
+        "-d",
+        type=Path,
+        default=DEFAULT_DATA,
+        help=f"CSV with columns 'en' and 'fr' (default: {DEFAULT_DATA})",
+    )
+    parser.add_argument(
+        "--tokenizers-dir",
+        "-t",
+        type=Path,
+        default=TOKENIZERS_DIR,
+        help=f"Root directory for tokenizer output folders (default: {TOKENIZERS_DIR})",
+    )
+
+    # --- Parse and Validate Arguments ---
+    args = parser.parse_args()
+
+    if not args.data.is_file():
+        parser.error(f"CSV not found: {args.data}")
+
+    # --- Setup Output Paths ---
+    start = time.perf_counter()
+    out_dir = (args.tokenizers_dir / f"{args.lang}-vocab_{args.vocab_size}").resolve()
+
+    # --- Initialize and Train Tokenizer ---
+    tok = _make_tokenizer()
     trainer = trainers.BpeTrainer(
-        vocab_size=vocab_size,
-        special_tokens=[TOKEN_BOS, TOKEN_EOS, TOKEN_PAD],
+        vocab_size=args.vocab_size,
+        min_frequency=MIN_FREQUENCY,
+        special_tokens=SPECIAL_TOKENS,
     )
-    corpus_iterator = get_corpus_generator(corpus_filename, 50000)
-    tokenizer.train_from_iterator(corpus_iterator, trainer=trainer)
-    batch_tokenizer = PreTrainedTokenizerFast(
-        tokenizer_object=tokenizer,
+    tok.train_from_iterator(_iter_corpus(args.data, args.lang), trainer=trainer)
+
+    # --- Save Artifacts ---
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Wrap in PreTrainedTokenizerFast to attach special token meanings (bos_token, etc.)
+    # and save helper files (tokenizer_config.json, special_tokens_map.json) for flavors.py.
+    wrapped = PreTrainedTokenizerFast(
+        tokenizer_object=tok,
         bos_token=TOKEN_BOS,
         eos_token=TOKEN_EOS,
         pad_token=TOKEN_PAD,
+        unk_token=TOKEN_UNK,
     )
-    batch_tokenizer.save_pretrained(f"tokenizer_{vocab_size}", legacy_format=False)
+    wrapped.save_pretrained(out_dir)
 
-
-@click.command()
-@click.option(
-    "filename",
-    "-f",
-    required=True,
-    type=str,
-    help="The filename of the dataset on which to train a tokenizer",
-)
-@click.option(
-    "vocab_size",
-    "-s",
-    required=True,
-    type=int,
-    help="The vocabulary size of the tokenizer to train",
-)
-def main(filename, vocab_size):
-    start = time.time()
-    create_tokenizer(corpus_filename=filename, vocab_size=vocab_size)
-    print(f"Tokenizer trained in {(time.time() - start)/60:.1f} minutes")
+    # --- Final Report ---
+    print(
+        f"Saved tokenizer to {out_dir} ({(time.perf_counter() - start) / 60:.1f} min)"
+    )
 
 
 if __name__ == "__main__":

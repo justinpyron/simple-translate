@@ -4,7 +4,7 @@ from pathlib import Path
 
 import modal
 
-from interfaces import TranslationDirection
+from schemas import TranslationDirection
 
 # =============================================================================
 # Deployment configuration
@@ -27,9 +27,9 @@ image = (
         "pydantic==2.13.2",
         "fastapi==0.136.0",
     )
-    .add_local_python_source("interfaces")
+    .add_local_python_source("schemas")
     .add_local_python_source("flavors")
-    .add_local_python_source("simple_translate")
+    .add_local_python_source("architecture")
 )
 volume = modal.Volume.from_name(VOLUME_NAME)
 
@@ -77,7 +77,6 @@ class Server:
         text_source: str,
         direction: TranslationDirection,
         temperature: float | None = None,
-        beams: int | None = None,
     ) -> str:
         """
         Generate a translation for one input string.
@@ -85,8 +84,8 @@ class Server:
         Args:
             text_source: Text in the source language for the chosen direction
             direction: ``en2fr`` (English → French) or ``fr2en`` (French → English)
-            temperature: Sampling temperature when using temperature-based generation
-            beams: Beam width when using beam search
+            temperature: Sampling temperature. ``None`` uses 0.1; values are
+                floored at 1e-3.
 
         Returns:
             Translated text in the target language
@@ -107,19 +106,14 @@ class Server:
             return_tensors="pt",
         )["input_ids"]
 
-        if temperature is not None:
-            temperature = max(1e-3, temperature)
-            tokens_destination = model.generate_with_temp(
-                tokens_source, temperature=temperature
-            )
-        elif beams is not None:
-            tokens_destination = model.generate_with_beams(
-                tokens_source, beam_width=beams
-            )
-        else:
-            tokens_destination = model.generate_with_temp(
-                tokens_source, temperature=0.1
-            )
+        tokens_destination = model.generate_with_temp(
+            tokens_source,
+            temperature=(
+                0.1
+                if temperature is None
+                else max(1e-3, temperature)  # Ensure temp > 0
+            ),
+        )
 
         translation = tok_destination.decode(
             tokens_destination[0], skip_special_tokens=True
@@ -132,7 +126,7 @@ class Server:
         """Create and configure the FastAPI application."""
         from fastapi import FastAPI
 
-        from interfaces import TranslateRequest, TranslateResponse
+        from schemas import TranslateRequest, TranslateResponse
 
         server = FastAPI(title="SimpleTranslate API")
 
@@ -142,7 +136,6 @@ class Server:
                 text_source=request.text_source,
                 direction=request.direction,
                 temperature=request.temperature,
-                beams=request.beams,
             )
             return TranslateResponse(translation=translation)
 

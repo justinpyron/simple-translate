@@ -7,12 +7,12 @@ The model uses an encoder-decoder transformer architecture inspired by _[Attenti
 ```
 ├── README.md                <- Overview
 ├── app.py                   <- Streamlit web app frontend
-├── simple_translate.py      <- Architecture of underlying transformer model
+├── architecture.py          <- Architecture of underlying transformer model
 ├── model_configs.py         <- Hyperparameters of the model
 ├── model_for_app.pt         <- Weights of the trained model used in the app
 ├── create_tokenizer.py      <- Trains a tokenizer
 ├── trainer.py               <- Utils for training the model
-├── launch_trainer.py        <- Launches a trainer.py training session
+├── trainer_job.py           <- Modal entrypoint for training (uses trainer.py)
 ├── flask_app.py             <- Flask app for serving predictions
 ├── Dockerfile               <- Docker image for Flask app
 ├── pyproject.toml           <- Poetry config specifying Python environment dependencies

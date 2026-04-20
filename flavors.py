@@ -14,7 +14,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from transformers import PreTrainedTokenizerFast
 
-from simple_translate import SimpleTranslate
+from architecture import SimpleTranslate
 
 
 class Flavor(BaseModel):

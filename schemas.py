@@ -11,7 +11,6 @@ class TranslateRequest(BaseModel):
     text_source: str
     direction: TranslationDirection
     temperature: float | None = None
-    beams: int | None = None
 
 
 class TranslateResponse(BaseModel):
