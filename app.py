@@ -10,7 +10,7 @@ SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"
 
 WHAT_IS_THIS_APP = """
-This app demos a neural machine translation model built from scratch.
+This app demos a Neural Machine Translation (NMT) model built from scratch.
 
 It uses an [encoder-decoder transformer architecture](https://github.com/justinpyron/simple-translate/blob/main/simple_translate.py) inspired by _[Attention Is All You Need](https://arxiv.org/abs/1706.03762)_. It was trained on millions of English/French sentence pairs from the [main dataset](https://www.kaggle.com/datasets/dhruvildave/en-fr-translation-dataset) of the 2015 Workshop on Statistical Machine Translation.
 
