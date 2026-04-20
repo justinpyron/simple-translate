@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "dash>=4.1.0",
+    "dash-bootstrap-components>=1.6.0",
     "httpx>=0.28.1",
     "pydantic>=2.13.2",
     "streamlit>=1.56.0",
