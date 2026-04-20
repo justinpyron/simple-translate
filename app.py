@@ -48,7 +48,7 @@ def translate(
         response = httpx.post(
             f"{SERVER_URL}/{SERVER_ENDPOINT_PATH}",
             json=request.model_dump(),
-            timeout=30.0,
+            timeout=120.0,
         )
         response.raise_for_status()
         translate_response = TranslateResponse.model_validate(response.json())
