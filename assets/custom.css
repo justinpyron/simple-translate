@@ -85,12 +85,17 @@ a:hover {
 /* --------------------------- Language label ------------------------- */
 
 .lang-label {
-    text-align: center;
     font-size: 0.8rem;
     font-weight: 500;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--st-text-muted);
+}
+#source-label {
+    text-align: left;
+}
+#target-label {
+    text-align: right;
 }
 
 /* ------------------------------ Buttons ----------------------------- */
