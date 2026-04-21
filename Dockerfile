@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy necessary application files (Dash serves ./assets relative to app.py)
+# Copy necessary application files
 COPY app.py schemas.py ./
 COPY assets/ ./assets/
 
