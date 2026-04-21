@@ -45,8 +45,7 @@ jobs:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
-          pip install modal
-          modal deploy backend.py
+          uv run --no-dev --with modal modal deploy backend.py
 
       # Step 6: Authenticate to Google Cloud
       - name: Authenticate to Google Cloud
