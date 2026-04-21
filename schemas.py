@@ -8,7 +8,7 @@ TranslationDirection = Literal["en2fr", "fr2en"]
 
 
 class TranslateRequest(BaseModel):
-    text_source: str
+    text: str
     direction: TranslationDirection
     temperature: float | None = None
 

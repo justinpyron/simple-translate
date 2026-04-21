@@ -20,7 +20,7 @@ Source code 👉 [GitHub](https://github.com/justinpyron/simple-translate)
 
 
 def translate(
-    text_source: str,
+    text: str,
     direction: TranslationDirection,
     temperature: float | None = None,
 ) -> str:
@@ -28,7 +28,7 @@ def translate(
     Generate translation by calling the Modal inference server.
 
     Args:
-        text_source: The source text to translate
+        text: The source text to translate
         direction: Translation direction (en2fr or fr2en)
         temperature: Temperature for sampling
 
@@ -36,7 +36,7 @@ def translate(
         The translated target text
     """
     request = TranslateRequest(
-        text_source=text_source,
+        text=text,
         direction=direction,
         temperature=temperature,
     )

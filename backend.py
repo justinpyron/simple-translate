@@ -74,7 +74,7 @@ class Server:
 
     def translate(
         self,
-        text_source: str,
+        text: str,
         direction: TranslationDirection,
         temperature: float | None = None,
     ) -> str:
@@ -82,7 +82,7 @@ class Server:
         Generate a translation for one input string.
 
         Args:
-            text_source: Text in the source language for the chosen direction
+            text: Text in the source language for the chosen direction
             direction: ``en2fr`` (English → French) or ``fr2en`` (French → English)
             temperature: Sampling temperature. ``None`` uses 0.1; values are
                 floored at 1e-3.
@@ -98,7 +98,7 @@ class Server:
         )
 
         tokens_source = tok_source(
-            text_source,
+            text,
             truncation=True,
             max_length=model.max_sequence_length,
             return_attention_mask=False,
@@ -133,7 +133,7 @@ class Server:
         @server.post("/translate", response_model=TranslateResponse)
         def translate_endpoint(request: TranslateRequest) -> TranslateResponse:
             translation = self.translate(
-                text_source=request.text_source,
+                text=request.text,
                 direction=request.direction,
                 temperature=request.temperature,
             )
