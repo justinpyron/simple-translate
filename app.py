@@ -65,6 +65,11 @@ app.layout = dbc.Container(
         dcc.Store(id="direction-store", data="en2fr"),
         html.Div("🌎 Simple Translate", className="app-title"),
         html.Div(
+            id="backend-status-container",
+            className="d-flex justify-content-center",
+            style={"marginBottom": "1.5rem", "minHeight": "32px"},
+        ),
+        html.Div(
             [
                 html.Button(
                     [
@@ -193,6 +198,12 @@ app.layout = dbc.Container(
             ],
             className="settings-wrapper",
         ),
+        dcc.Interval(
+            id="ping-interval",
+            interval=2000,
+            n_intervals=0,
+            max_intervals=-1,
+        ),
     ],
     fluid=True,
     className="app-container",
@@ -273,6 +284,42 @@ def handle_translate(n_clicks, source_text, direction, temperature):
 
     translation = translate(source_text, direction, temperature)
     return translation
+
+
+@app.callback(
+    Output("backend-status-container", "children"),
+    Output("ping-interval", "max_intervals"),
+    Input("ping-interval", "n_intervals"),
+)
+def wake_up_backend(n):
+    """Ping the backend on startup to trigger Modal cold start."""
+    if not SERVER_URL:
+        return None, 0
+
+    try:
+        # Short timeout to check if awake or trigger wakeup
+        response = httpx.get(f"{SERVER_URL}/health", timeout=1.0)
+        if response.status_code == 200:
+            return None, 0  # Success: Hide and stop
+    except Exception:
+        pass
+
+    # Still waking up or failed
+    return (
+        html.Div(
+            [
+                dbc.Spinner(size="sm", className="me-2", color="primary"),
+                "Waking up the server...",
+            ],
+            className="secondary-pill active",
+            style={
+                "cursor": "default",
+                "fontSize": "0.75rem",
+                "padding": "0.4rem 1rem",
+            },
+        ),
+        -1,
+    )
 
 
 if __name__ == "__main__":
