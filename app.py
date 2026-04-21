@@ -8,6 +8,7 @@ from schemas import TranslateRequest, TranslateResponse, TranslationDirection
 
 SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"
+PORT = 8080
 
 WHAT_IS_THIS_APP = """
 This app demos a Neural Machine Translation (NMT) model built from scratch.
@@ -19,7 +20,7 @@ Source code 👉 [GitHub](https://github.com/justinpyron/simple-translate)
 
 
 def translate(
-    text_source: str,
+    text: str,
     direction: TranslationDirection,
     temperature: float | None = None,
 ) -> str:
@@ -27,7 +28,7 @@ def translate(
     Generate translation by calling the Modal inference server.
 
     Args:
-        text_source: The source text to translate
+        text: The source text to translate
         direction: Translation direction (en2fr or fr2en)
         temperature: Temperature for sampling
 
@@ -35,7 +36,7 @@ def translate(
         The translated target text
     """
     request = TranslateRequest(
-        text_source=text_source,
+        text=text,
         direction=direction,
         temperature=temperature,
     )
@@ -275,4 +276,4 @@ def handle_translate(n_clicks, source_text, direction, temperature):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8050)
+    app.run(debug=False, host="0.0.0.0", port=PORT)
