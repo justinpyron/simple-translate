@@ -64,11 +64,7 @@ app.layout = dbc.Container(
     [
         dcc.Store(id="direction-store", data="en2fr"),
         html.Div("🌎 Simple Translate", className="app-title"),
-        html.Div(
-            id="backend-status-container",
-            className="d-flex justify-content-center",
-            style={"marginBottom": "1.5rem", "minHeight": "32px"},
-        ),
+        html.Div(id="backend-status-container"),
         html.Div(
             [
                 html.Button(
@@ -307,16 +303,22 @@ def wake_up_backend(n):
     # Still waking up or failed
     return (
         html.Div(
-            [
-                html.Span(dbc.Spinner(size="sm", color="primary"), className="me-2"),
-                "Waking up the server...",
-            ],
-            className="secondary-pill active",
-            style={
-                "cursor": "default",
-                "fontSize": "0.75rem",
-                "padding": "0.4rem 1rem",
-            },
+            html.Div(
+                [
+                    html.Span(
+                        dbc.Spinner(size="sm", color="primary"), className="me-2"
+                    ),
+                    "Waking up the server...",
+                ],
+                className="secondary-pill active",
+                style={
+                    "cursor": "default",
+                    "fontSize": "0.75rem",
+                    "padding": "0.4rem 1rem",
+                },
+            ),
+            className="d-flex justify-content-center mb-4",
+            style={"minHeight": "32px"},
         ),
         -1,
     )
