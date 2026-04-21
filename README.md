@@ -45,5 +45,28 @@ The app connects to an inference backend. Ensure the `SIMPLE_TRANSLATE_SERVER_UR
 # Deployment
 The project uses a dual-cloud architecture:
 - **Frontend**: A Dockerized Dash app deployed to **Google Cloud Run**.
-- **Inference Backend**: A **Modal** app providing a GPU-accelerated FastAPI endpoint.
+- **Inference Backend**: A **Modal** app providing a FastAPI endpoint.
 - **CI/CD**: A GitHub Action (`.github/workflows/build-and-push-image.yml`) automates the deployment of both components.
+
+# Development
+### 1. Training on Modal
+Retrain the model using the Modal entrypoint. This requires a [Modal account](https://modal.com/):
+```bash
+uv run modal run trainer_job.py \
+    --flavor small \
+    --direction en2fr \
+    --tokenizer-dir-source tokenizers/en-vocab_1000 \
+    --tokenizer-dir-destination tokenizers/fr-vocab_1000 \
+    --dataset-filename-train data/train.csv \
+    --dataset-filename-val data/val.csv \
+    --num-train-examples 1000000 \
+    --batch-size-train 64 \
+    --lr-start 1e-4 \
+    --eval-every 5000
+```
+
+### 2. Tokenizers
+Generate new BPE tokenizers for English or French:
+```bash
+uv run python create_tokenizer.py --lang en --vocab-size 1000
+```
