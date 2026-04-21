@@ -41,3 +41,9 @@ uv run python app.py
 ```
 
 The app connects to an inference backend. Ensure the `SIMPLE_TRANSLATE_SERVER_URL` environment variable is set to your deployed Modal service URL.
+
+# Deployment
+The project uses a dual-cloud architecture:
+- **Frontend**: A Dockerized Dash app deployed to **Google Cloud Run**.
+- **Inference Backend**: A **Modal** app providing a GPU-accelerated FastAPI endpoint.
+- **CI/CD**: A GitHub Action (`.github/workflows/build-and-push-image.yml`) automates the deployment of both components.
