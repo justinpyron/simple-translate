@@ -9,7 +9,6 @@ dependencies = [
     "dash-bootstrap-components>=1.6.0",
     "httpx>=0.28.1",
     "pydantic>=2.13.2",
-    "streamlit>=1.56.0",
 ]
 
 [dependency-groups]
