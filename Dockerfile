@@ -8,8 +8,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy necessary application files
+# Copy necessary application files (Dash serves ./assets relative to app.py)
 COPY app.py schemas.py ./
+COPY assets/ ./assets/
 
 # Port must match PORT in app.py
 EXPOSE 8080
