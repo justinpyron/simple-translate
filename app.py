@@ -8,6 +8,7 @@ from schemas import TranslateRequest, TranslateResponse, TranslationDirection
 
 SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"
+PORT = 8080
 
 WHAT_IS_THIS_APP = """
 This app demos a Neural Machine Translation (NMT) model built from scratch.
@@ -275,4 +276,4 @@ def handle_translate(n_clicks, source_text, direction, temperature):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8050)
+    app.run(debug=False, host="0.0.0.0", port=PORT)
