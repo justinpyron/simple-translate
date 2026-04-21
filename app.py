@@ -9,7 +9,7 @@ from schemas import TranslateRequest, TranslateResponse, TranslationDirection
 SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"
 PORT = 8080
-WAKEUP_PING_INTERVAL_MILLISECONDS = 5000
+WAKEUP_PING_INTERVAL_MILLISECONDS = 4000
 
 WHAT_IS_THIS_APP = """
 This app demos a Neural Machine Translation (NMT) model built from scratch.
