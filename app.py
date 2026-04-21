@@ -308,7 +308,7 @@ def wake_up_backend(n):
     return (
         html.Div(
             [
-                dbc.Spinner(size="sm", className="me-2", color="primary"),
+                html.Span(dbc.Spinner(size="sm", color="primary"), className="me-2"),
                 "Waking up the server...",
             ],
             className="secondary-pill active",
