@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
       # Step 1: Check out repository code
@@ -27,18 +26,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.12"
 
-      # Step 3: Install Poetry dependency manager
-      - name: Install Poetry
-        run: |
-          pip install poetry poetry-plugin-export
-          poetry --version
+      # Step 3: Install uv package manager
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
       # Step 4: Export dependencies to requirements.txt
-      - name: Export requirements from Poetry
+      - name: Export requirements from uv
         run: |
-          poetry export --only main -f requirements.txt --output requirements.txt --without-hashes
+          uv export --no-dev --no-hashes --output-file requirements.txt
           echo "Generated requirements.txt:"
           cat requirements.txt
 
@@ -106,4 +103,4 @@ jobs:
             --allow-unauthenticated
             --description="Deployed from GitHub Actions - ${{ github.sha }}"
           env_vars: |
-            SERVER_URL=${{ env.SERVER_URL }}
+            SIMPLE_TRANSLATE_SERVER_URL=${{ env.SERVER_URL }}
