@@ -9,6 +9,7 @@ from schemas import TranslateRequest, TranslateResponse, TranslationDirection
 SERVER_URL = os.environ.get("SIMPLE_TRANSLATE_SERVER_URL")
 SERVER_ENDPOINT_PATH = "translate"
 PORT = 8080
+WAKEUP_PING_INTERVAL_MILLISECONDS = 5000
 
 WHAT_IS_THIS_APP = """
 This app demos a Neural Machine Translation (NMT) model built from scratch.
@@ -196,7 +197,7 @@ app.layout = dbc.Container(
         ),
         dcc.Interval(
             id="ping-interval",
-            interval=2000,
+            interval=WAKEUP_PING_INTERVAL_MILLISECONDS,
             n_intervals=0,
             max_intervals=-1,
         ),
