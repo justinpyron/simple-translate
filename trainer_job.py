@@ -120,6 +120,7 @@ def main(
     save_dir: str = DEFAULT_SAVE_DIR,
     resume_from: str = None,
     max_eval_examples: int = None,
+    save_every_eval: bool = False,
 ):
     """Launch SimpleTranslate training on Modal."""
     if flavor not in FLAVORS:
@@ -141,6 +142,7 @@ def main(
         warmup_examples=warmup_examples,
         save_dir=save_dir,
         max_eval_examples=max_eval_examples,
+        save_every_eval=save_every_eval,
     )
 
     print(f"\n🚀 Training {flavor} on Modal ({DEFAULT_GPU})")
