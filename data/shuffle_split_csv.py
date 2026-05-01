@@ -19,10 +19,10 @@ is a few hundred MB). Note the OS file-handle limit: on macOS the default is 256
 so raise `ulimit -n` if `num_chunks` is large.
 
 Usage:
-  python data/shuffle_split_csv.py INPUT OUTPUT_DIR [-n NUM_CHUNKS] [-s SEED]
+  python data/shuffle_split_csv.py -i INPUT -o OUTPUT_DIR [-n NUM_CHUNKS] [-s SEED]
 
 Example:
-  python data/shuffle_split_csv.py data/en-fr.csv data/en-fr-shuffled -n 50
+  python data/shuffle_split_csv.py -i data/en-fr.csv -o data/en-fr-shuffled -n 50
 """
 
 import argparse
@@ -71,9 +71,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Shuffle a large CSV and split it into N smaller chunks.",
     )
-    parser.add_argument("input", help="Path to the input CSV.")
     parser.add_argument(
-        "output_dir", help="Directory to write chunk_XX.csv files into."
+        "-i",
+        "--input",
+        required=True,
+        help="Path to the input CSV.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        required=True,
+        help="Directory to write chunk_XX.csv files into.",
     )
     parser.add_argument(
         "-n",
