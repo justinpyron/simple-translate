@@ -41,7 +41,7 @@ def shuffle_split_csv(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    chunk_paths = [output_dir / f"chunk_{i:04d}.csv" for i in range(num_chunks)]
+    chunk_paths = [output_dir / f"chunk_{i:02d}.csv" for i in range(num_chunks)]
 
     # Pass 1: scatter rows into random buckets (streaming, ~constant memory).
     with open(input_path, "r", newline="", encoding="utf-8") as fin:
@@ -73,14 +73,14 @@ def main() -> None:
     )
     parser.add_argument("input", help="Path to the input CSV.")
     parser.add_argument(
-        "output_dir", help="Directory to write chunk_XXXX.csv files into."
+        "output_dir", help="Directory to write chunk_XX.csv files into."
     )
     parser.add_argument(
         "-n",
         "--num-chunks",
         type=int,
         default=5,
-        help="Number of output chunks (default: 50).",
+        help="Number of output chunks (default: 5).",
     )
     parser.add_argument(
         "-s",
