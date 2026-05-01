@@ -33,7 +33,7 @@ from pathlib import Path
 def shuffle_split_csv(
     input_path: str,
     output_dir: str,
-    num_chunks: int = 50,
+    num_chunks: int,
     seed: int = 0,
 ) -> None:
     rng = random.Random(seed)
@@ -79,7 +79,7 @@ def main() -> None:
         "-n",
         "--num-chunks",
         type=int,
-        default=50,
+        default=5,
         help="Number of output chunks (default: 50).",
     )
     parser.add_argument(
