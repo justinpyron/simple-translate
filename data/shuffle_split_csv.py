@@ -41,7 +41,7 @@ def shuffle_split_csv(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    chunk_paths = [output_dir / f"chunk_{i:02d}.csv" for i in range(num_chunks)]
+    chunk_paths = [output_dir / f"data_wml_{i:02d}.csv" for i in range(num_chunks)]
 
     # Pass 1: scatter rows into random buckets (streaming, ~constant memory).
     with open(input_path, "r", newline="", encoding="utf-8") as fin:
