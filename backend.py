@@ -15,8 +15,8 @@ VOL_MOUNT_PATH = Path("/data")
 FLAVOR = "small"
 TOKENIZER_EN = Path("tokenizers/en-vocab_1000")
 TOKENIZER_FR = Path("tokenizers/fr-vocab_1000")
-WEIGHTS_EN = Path("weights/small-en2fr-20260420T0410.pt")
-WEIGHTS_FR = Path("weights/small-fr2en-20260420T0411.pt")
+WEIGHTS_EN = Path("weights/small-en2fr-20260501T1834.pt")
+WEIGHTS_FR = Path("weights/small-fr2en-20260501T1838.pt")
 
 app = modal.App("simple-translate")
 image = (
