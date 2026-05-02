@@ -54,6 +54,7 @@ class TrainingConfig(BaseModel):
     log_every: int = Field(gt=0)
     eval_every: int = Field(gt=0)
     max_eval_examples: int | None = Field(None, gt=0)
+    save_every_eval: bool = False
 
 
 class Trainer:
@@ -226,6 +227,9 @@ class Trainer:
           examples. Whenever eval loss improves, checkpoint the model.
         - `max_eval_examples`: if set, cap each eval pass at this many examples
           (relies on LLN to approximate full-set loss). Otherwise use full val set.
+        - `save_every_eval`: if True, overwrite the checkpoint after every eval
+          pass, regardless of whether eval loss improved (same file path as the
+          best-loss checkpoint).
         """
         cfg = self.config
         run_name = f"{self.model.name}-{cfg.direction}-{datetime.now():%Y%m%dT%H%M}"
@@ -269,16 +273,20 @@ class Trainer:
                 if self.examples_trained_on >= next_eval_at:
                     eval_loss = self.evaluate(max_examples=cfg.max_eval_examples)
                     wandb.log({"eval/loss": eval_loss}, step=self.examples_trained_on)
-                    if eval_loss < self.best_loss:
+                    is_best = eval_loss < self.best_loss
+                    if is_best:
                         self.best_loss = eval_loss
                         wandb.log(
                             {"eval/best_loss": self.best_loss},
                             step=self.examples_trained_on,
                         )
+                    if is_best or cfg.save_every_eval:
                         self.save(run_name)
+                        reason = "best" if is_best else "save_every_eval"
                         logger.info(
-                            f"Saved best model at {self.examples_trained_on} "
-                            f"examples (eval loss {eval_loss:.3f})"
+                            f"Saved model at {self.examples_trained_on} "
+                            f"examples (eval loss {eval_loss:.3f}, "
+                            f"best {self.best_loss:.3f}, reason: {reason})"
                         )
                     next_eval_at += cfg.eval_every
 
